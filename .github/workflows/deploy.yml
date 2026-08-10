@@ -11,8 +11,8 @@ concurrency:
 
 env:
   APP_DIR: /srv/flatnik
-  # Кавычки обязательны: двоеточие в SSH-адресе ломает разбор YAML
-  REPO_SSH: "[Email20]:maximusnikulin/flatnik.git"
+  GH_HOST: github.com
+  REPO_PATH: maximusnikulin/flatnik.git
 
 jobs:
   deploy:
@@ -52,10 +52,11 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: APP_DIR,REPO_SSH,SHA
+          envs: APP_DIR,GH_HOST,REPO_PATH,SHA
           command_timeout: 30m
           script: |
             set -e
+            REPO_SSH="git@${GH_HOST}:${REPO_PATH}"
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/gh_flatnik -o IdentitiesOnly=yes"
 
             if [ ! -d "$APP_DIR/.git" ]; then
