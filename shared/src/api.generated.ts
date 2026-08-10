@@ -21,6 +21,125 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/request-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Запросить код подтверждения; заглушка пишет код в лог бэкенда */
+        post: operations["AuthController_requestCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/verify-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Обменять код из лога на JWT */
+        post: operations["AuthController_verifyCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Профиль текущего пользователя */
+        get: operations["AuthController_me"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/houses": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Все дома с отзывами — пины на карте */
+        get: operations["HousesController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/houses/by-address": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Дом с квартирами по адресу; house = null, если отзывов ещё нет */
+        get: operations["HousesController_byAddress"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Создать отзыв; дом и квартира заводятся автоматически */
+        post: operations["ReviewsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/apartments/{id}/reviews": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Отзывы одной квартиры, новые сверху */
+        get: operations["ApartmentReviewsController_list"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -49,6 +168,149 @@ export interface components {
              */
             timestamp: string;
         };
+        RequestCodeDto: {
+            /**
+             * @description Телефон в российском формате
+             * @example +79991234567
+             */
+            phone: string;
+        };
+        VerifyCodeDto: {
+            /**
+             * @description Телефон в российском формате
+             * @example +79991234567
+             */
+            phone: string;
+            /**
+             * @description Шестизначный код из лога бэкенда
+             * @example 123456
+             */
+            code: string;
+        };
+        UserDto: {
+            /**
+             * @description Телефон, на который выдан токен
+             * @example +79991234567
+             */
+            phone: string;
+            /**
+             * @description Имя из формы отзыва; null, пока не указано
+             * @example Максим
+             */
+            name: string | null;
+            /** @description Идентификатор пользователя */
+            id: string;
+        };
+        AuthResponseDto: {
+            /** @description Bearer-токен для заголовка Authorization */
+            accessToken: string;
+            /** @description Профиль вошедшего пользователя */
+            user: components["schemas"]["UserDto"];
+        };
+        HousePinDto: {
+            /** @description Идентификатор дома */
+            id: string;
+            /** @description Отображаемый адрес */
+            address: string;
+            lat: number;
+            lon: number;
+            /** @description Подтверждённых отзывов по всем квартирам дома */
+            confirmedCount: number;
+            /** @description Неподтверждённых отзывов по всем квартирам дома */
+            pendingCount: number;
+        };
+        ApartmentSummaryDto: {
+            /** @description Идентификатор квартиры */
+            id: string;
+            /** @description Номер квартиры */
+            number: string;
+            /** @description Подъезд */
+            entrance: string;
+            /** @description Подтверждённых отзывов */
+            confirmedCount: number;
+            /** @description Неподтверждённых отзывов */
+            pendingCount: number;
+        };
+        HouseWithApartmentsDto: {
+            /** @description Квартиры дома, по которым есть отзывы */
+            apartments: components["schemas"]["ApartmentSummaryDto"][];
+            id: string;
+            address: string;
+            lat: number;
+            lon: number;
+        };
+        HouseLookupResponseDto: {
+            /** @description null — по этому адресу ещё нет ни одного отзыва */
+            house: components["schemas"]["HouseWithApartmentsDto"] | null;
+        };
+        CreateReviewDto: {
+            /**
+             * @description Номер квартиры
+             * @example 120
+             */
+            apartmentNumber: string;
+            /**
+             * @description Подъезд; обязателен — API Яндекса его не отдаёт, вводится вручную
+             * @example 7
+             */
+            entrance: string;
+            /**
+             * @description Кадастровый номер из выписки ЕГРН
+             * @example 77:01:0001075:1234
+             */
+            egrn: string;
+            /**
+             * @description Начало периода съёма, ISO-дата
+             * @example 2024-03-12
+             */
+            periodFrom?: string;
+            /**
+             * @description Конец периода съёма, ISO-дата
+             * @example 2025-04-12
+             */
+            periodTo?: string;
+            /** @description Канонический адрес дома от геокодера */
+            address: string;
+            /** @description Широта дома */
+            lat: number;
+            /** @description Долгота дома */
+            lon: number;
+            /** @description Текст отзыва */
+            text: string;
+            /** @description Имя автора; сохраняется в профиль и показывается у отзывов */
+            authorName?: string;
+            /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+            captchaToken?: string;
+        };
+        /** @enum {string} */
+        ReviewStatus: "pending" | "confirmed";
+        ReviewCreatedDto: {
+            status: components["schemas"]["ReviewStatus"];
+            reviewId: string;
+            houseId: string;
+            apartmentId: string;
+        };
+        ReviewDto: {
+            status: components["schemas"]["ReviewStatus"];
+            /**
+             * @description Начало периода съёма
+             * @example 2024-03-12
+             */
+            periodFrom: string | null;
+            /**
+             * @description Конец периода съёма
+             * @example 2025-04-12
+             */
+            periodTo: string | null;
+            /** @description Идентификатор отзыва */
+            id: string;
+            /** @description Имя автора или маскированный телефон */
+            authorName: string;
+            /** @description Текст отзыва */
+            text: string;
+            /** @description Дата создания, ISO 8601 */
+            createdAt: string;
+        };
     };
     responses: never;
     parameters: never;
@@ -73,6 +335,176 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponseDto"];
+                };
+            };
+        };
+    };
+    AuthController_requestCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestCodeDto"];
+            };
+        };
+        responses: {
+            /** @description Код сгенерирован и записан в лог */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_verifyCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyCodeDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuthResponseDto"];
+                };
+            };
+            /** @description Неверный или истёкший код */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+        };
+    };
+    HousesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HousePinDto"][];
+                };
+            };
+        };
+    };
+    HousesController_byAddress: {
+        parameters: {
+            query: {
+                /** @description Канонический адрес, как его вернул геокодер */
+                address: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HouseLookupResponseDto"];
+                };
+            };
+        };
+    };
+    ReviewsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateReviewDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewCreatedDto"];
+                };
+            };
+            /** @description Нет или истёк токен авторизации */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Не пройдена проверка капчи */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApartmentReviewsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReviewDto"][];
                 };
             };
         };

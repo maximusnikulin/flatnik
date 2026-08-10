@@ -22,6 +22,228 @@
           "health"
         ]
       }
+    },
+    "/api/auth/request-code": {
+      "post": {
+        "operationId": "AuthController_requestCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Код сгенерирован и записан в лог"
+          }
+        },
+        "summary": "Запросить код подтверждения; заглушка пишет код в лог бэкенда",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/verify-code": {
+      "post": {
+        "operationId": "AuthController_verifyCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyCodeDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthResponseDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверный или истёкший код"
+          }
+        },
+        "summary": "Обменять код из лога на JWT",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "operationId": "AuthController_me",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Профиль текущего пользователя",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/houses": {
+      "get": {
+        "operationId": "HousesController_list",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/HousePinDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Все дома с отзывами — пины на карте",
+        "tags": [
+          "houses"
+        ]
+      }
+    },
+    "/api/houses/by-address": {
+      "get": {
+        "operationId": "HousesController_byAddress",
+        "parameters": [
+          {
+            "name": "address",
+            "required": true,
+            "in": "query",
+            "description": "Канонический адрес, как его вернул геокодер",
+            "schema": {
+              "maxLength": 500,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HouseLookupResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Дом с квартирами по адресу; house = null, если отзывов ещё нет",
+        "tags": [
+          "houses"
+        ]
+      }
+    },
+    "/api/reviews": {
+      "post": {
+        "operationId": "ReviewsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReviewCreatedDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Нет или истёк токен авторизации"
+          },
+          "403": {
+            "description": "Не пройдена проверка капчи"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Создать отзыв; дом и квартира заводятся автоматически",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
+    "/api/apartments/{id}/reviews": {
+      "get": {
+        "operationId": "ApartmentReviewsController_list",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ReviewDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Отзывы одной квартиры, новые сверху",
+        "tags": [
+          "reviews"
+        ]
+      }
     }
   },
   "info": {
@@ -33,6 +255,13 @@
   "tags": [],
   "servers": [],
   "components": {
+    "securitySchemes": {
+      "bearer": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
     "schemas": {
       "HealthResponseDto": {
         "type": "object",
@@ -68,6 +297,364 @@
           "service",
           "uptime",
           "timestamp"
+        ]
+      },
+      "RequestCodeDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Телефон в российском формате",
+            "pattern": "/^\\+7\\d{10}$/",
+            "example": "+79991234567"
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "VerifyCodeDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Телефон в российском формате",
+            "pattern": "/^\\+7\\d{10}$/",
+            "example": "+79991234567"
+          },
+          "code": {
+            "type": "string",
+            "description": "Шестизначный код из лога бэкенда",
+            "pattern": "/^\\d{6}$/",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
+        ]
+      },
+      "UserDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Телефон, на который выдан токен",
+            "example": "+79991234567"
+          },
+          "name": {
+            "type": "string",
+            "nullable": true,
+            "description": "Имя из формы отзыва; null, пока не указано",
+            "example": "Максим"
+          },
+          "id": {
+            "type": "string",
+            "description": "Идентификатор пользователя"
+          }
+        },
+        "required": [
+          "phone",
+          "name",
+          "id"
+        ]
+      },
+      "AuthResponseDto": {
+        "type": "object",
+        "properties": {
+          "accessToken": {
+            "type": "string",
+            "description": "Bearer-токен для заголовка Authorization"
+          },
+          "user": {
+            "description": "Профиль вошедшего пользователя",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "accessToken",
+          "user"
+        ]
+      },
+      "HousePinDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Идентификатор дома"
+          },
+          "address": {
+            "type": "string",
+            "description": "Отображаемый адрес"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          },
+          "confirmedCount": {
+            "type": "number",
+            "description": "Подтверждённых отзывов по всем квартирам дома"
+          },
+          "pendingCount": {
+            "type": "number",
+            "description": "Неподтверждённых отзывов по всем квартирам дома"
+          }
+        },
+        "required": [
+          "id",
+          "address",
+          "lat",
+          "lon",
+          "confirmedCount",
+          "pendingCount"
+        ]
+      },
+      "ApartmentSummaryDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Идентификатор квартиры"
+          },
+          "number": {
+            "type": "string",
+            "description": "Номер квартиры"
+          },
+          "entrance": {
+            "type": "string",
+            "description": "Подъезд"
+          },
+          "confirmedCount": {
+            "type": "number",
+            "description": "Подтверждённых отзывов"
+          },
+          "pendingCount": {
+            "type": "number",
+            "description": "Неподтверждённых отзывов"
+          }
+        },
+        "required": [
+          "id",
+          "number",
+          "entrance",
+          "confirmedCount",
+          "pendingCount"
+        ]
+      },
+      "HouseWithApartmentsDto": {
+        "type": "object",
+        "properties": {
+          "apartments": {
+            "description": "Квартиры дома, по которым есть отзывы",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApartmentSummaryDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "apartments",
+          "id",
+          "address",
+          "lat",
+          "lon"
+        ]
+      },
+      "HouseLookupResponseDto": {
+        "type": "object",
+        "properties": {
+          "house": {
+            "nullable": true,
+            "description": "null — по этому адресу ещё нет ни одного отзыва",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HouseWithApartmentsDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "house"
+        ]
+      },
+      "CreateReviewDto": {
+        "type": "object",
+        "properties": {
+          "apartmentNumber": {
+            "type": "string",
+            "description": "Номер квартиры",
+            "minLength": 1,
+            "maxLength": 20,
+            "example": "120"
+          },
+          "entrance": {
+            "type": "string",
+            "description": "Подъезд; обязателен — API Яндекса его не отдаёт, вводится вручную",
+            "minLength": 1,
+            "maxLength": 20,
+            "example": "7"
+          },
+          "egrn": {
+            "type": "string",
+            "description": "Кадастровый номер из выписки ЕГРН",
+            "pattern": "/^[\\d:]{5,40}$/",
+            "example": "77:01:0001075:1234"
+          },
+          "periodFrom": {
+            "type": "string",
+            "description": "Начало периода съёма, ISO-дата",
+            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
+            "example": "2024-03-12"
+          },
+          "periodTo": {
+            "type": "string",
+            "description": "Конец периода съёма, ISO-дата",
+            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
+            "example": "2025-04-12"
+          },
+          "address": {
+            "type": "string",
+            "description": "Канонический адрес дома от геокодера",
+            "minLength": 5,
+            "maxLength": 500
+          },
+          "lat": {
+            "type": "number",
+            "description": "Широта дома",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "lon": {
+            "type": "number",
+            "description": "Долгота дома",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст отзыва",
+            "minLength": 10,
+            "maxLength": 10000
+          },
+          "authorName": {
+            "type": "string",
+            "description": "Имя автора; сохраняется в профиль и показывается у отзывов",
+            "maxLength": 100
+          },
+          "captchaToken": {
+            "type": "string",
+            "description": "Токен SmartCaptcha; обязателен, когда проверка капчи включена"
+          }
+        },
+        "required": [
+          "apartmentNumber",
+          "entrance",
+          "egrn",
+          "address",
+          "lat",
+          "lon",
+          "text"
+        ]
+      },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "confirmed"
+        ]
+      },
+      "ReviewCreatedDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              }
+            ]
+          },
+          "reviewId": {
+            "type": "string"
+          },
+          "houseId": {
+            "type": "string"
+          },
+          "apartmentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "reviewId",
+          "houseId",
+          "apartmentId"
+        ]
+      },
+      "ReviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              }
+            ]
+          },
+          "periodFrom": {
+            "type": "string",
+            "nullable": true,
+            "description": "Начало периода съёма",
+            "example": "2024-03-12"
+          },
+          "periodTo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Конец периода съёма",
+            "example": "2025-04-12"
+          },
+          "id": {
+            "type": "string",
+            "description": "Идентификатор отзыва"
+          },
+          "authorName": {
+            "type": "string",
+            "description": "Имя автора или маскированный телефон"
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст отзыва"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Дата создания, ISO 8601"
+          }
+        },
+        "required": [
+          "status",
+          "periodFrom",
+          "periodTo",
+          "id",
+          "authorName",
+          "text",
+          "createdAt"
         ]
       }
     }

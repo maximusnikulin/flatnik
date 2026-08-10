@@ -11,6 +11,7 @@ export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
     .setTitle('flatnik API')
     .setDescription('HTTP-контракт бэкенда flatnik')
     .setVersion('0.0.0')
+    .addBearerAuth()
     .build()
 
   return SwaggerModule.createDocument(app, config)

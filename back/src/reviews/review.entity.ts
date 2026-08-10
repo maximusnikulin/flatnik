@@ -1,0 +1,53 @@
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+} from 'typeorm'
+import { Apartment } from '../houses/apartment.entity'
+import { User } from '../users/user.entity'
+import { ReviewStatus } from './review-status'
+
+/** Отзыв о съёме конкретной квартиры */
+@Entity('reviews')
+export class Review {
+  @PrimaryGeneratedColumn('uuid')
+  id!: string
+
+  @Column({ type: 'uuid' })
+  apartmentId!: string
+
+  @ManyToOne(() => Apartment, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'apartmentId' })
+  apartment!: Apartment
+
+  @Column({ type: 'uuid' })
+  authorId!: string
+
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'authorId' })
+  author!: User
+
+  /** Кадастровый номер из выписки ЕГРН; автоматически не проверяется */
+  @Column({ type: 'text' })
+  egrn!: string
+
+  @Column({ type: 'text' })
+  text!: string
+
+  /** Начало периода съёма; колонки date TypeORM возвращает строками */
+  @Column({ type: 'date', nullable: true })
+  periodFrom!: string | null
+
+  /** Конец периода съёма */
+  @Column({ type: 'date', nullable: true })
+  periodTo!: string | null
+
+  @Column({ type: 'enum', enum: ReviewStatus, default: ReviewStatus.Pending })
+  status!: ReviewStatus
+
+  @CreateDateColumn()
+  createdAt!: Date
+}
