@@ -1,5 +1,28 @@
 # Образы собираются из исходников — и локально, и на сервере.
+# Секреты и ключи берутся из .env рядом с этим файлом (см. .env.example).
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+    volumes:
+      # Данные живут в named volume: docker compose down их не трогает,
+      # а вот down -v удалит безвозвратно — не запускать на сервере.
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      # Только loopback: для запуска back вне Docker (npm run dev).
+      # Наружу порт не публикуется — модель доступа как у back.
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
   back:
     image: flatnik-back:local
     build:
@@ -8,6 +31,16 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+      JWT_SECRET: ${JWT_SECRET:-flatnik-dev-secret}
+      SMARTCAPTCHA_SERVER_KEY: ${SMARTCAPTCHA_SERVER_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       # Именно 127.0.0.1: localhost в alpine резолвится и в ::1, а сервер
       # слушает только IPv4 — busybox wget получал бы Connection refused.
@@ -23,6 +56,11 @@ services:
     build:
       context: .
       dockerfile: front/Dockerfile
+      args:
+        # Vite инлайнит VITE_* в бандл при сборке — ключи попадают сюда,
+        # а не в environment рантайма.
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
     ports:
       - "8080:80"
     depends_on:
@@ -44,3 +82,6 @@ services:
       front:
         condition: service_started
     restart: unless-stopped
+
+volumes:
+  postgres-data:

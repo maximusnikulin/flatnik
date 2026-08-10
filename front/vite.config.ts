@@ -3,6 +3,9 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // .env общий на весь монорепозиторий и лежит в корне (его же читают
+  // docker compose и back) — поэтому поднимаемся на уровень выше.
+  envDir: '..',
   server: {
     host: '0.0.0.0',
     port: 5173,

@@ -12,6 +12,14 @@ RUN npm ci
 
 COPY shared ./shared
 COPY front ./front
+
+# Vite инлайнит VITE_* в бандл на этапе сборки, поэтому ключи приходят
+# build-аргами (см. args в docker-compose.yml), а не переменными рантайма.
+ARG VITE_YANDEX_MAPS_API_KEY
+ARG VITE_SMARTCAPTCHA_CLIENT_KEY
+ENV VITE_YANDEX_MAPS_API_KEY=$VITE_YANDEX_MAPS_API_KEY \
+    VITE_SMARTCAPTCHA_CLIENT_KEY=$VITE_SMARTCAPTCHA_CLIENT_KEY
+
 RUN npm run build --workspace=@flatnik/shared \
  && npm run build --workspace=@flatnik/front
 
