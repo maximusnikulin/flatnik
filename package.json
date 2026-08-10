@@ -12,7 +12,8 @@
     "up": "docker compose up -d --build",
     "down": "docker compose down",
     "logs": "docker compose logs -f",
-    "tunnel": "docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'"
+    "tunnel": "docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'",
+    "tunnel:remote": "ssh -o RemoteCommand=none -o RequestTTY=no root@194.180.188.196 \"cd /srv/flatnik && docker compose logs cloudflared 2>&1 | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -1\""
   },
   "engines": {
     "node": ">=20"
