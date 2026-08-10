@@ -21,6 +21,21 @@ jobs:
       contents: read
 
     steps:
+      - name: Server diagnostics
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            echo "=== RAM ==="; free -m
+            echo "=== SWAP ==="; swapon --show || echo "swap отсутствует"
+            echo "=== CPU ==="; nproc
+            echo "=== DISK ==="; df -h / /var/lib/docker 2>/dev/null
+            echo "=== LOAD ==="; cat /proc/loadavg
+            echo "=== DOCKER ==="; docker version --format '{{.Server.Version}}'
+            echo "=== OS ==="; cat /etc/os-release | head -2
+
       # Первый запуск: создаём deploy-ключ и доверяем хосту github.com.
       # Публичный ключ печатается в лог — его нужно один раз добавить
       # в Settings → Deploy keys, иначе clone приватного репо не пройдёт.
