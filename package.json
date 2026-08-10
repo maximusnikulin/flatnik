@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=back & npm run dev --workspace=front",
     "build": "npm run build --workspace=shared && npm run build --workspace=back && npm run build --workspace=front",
+    "openapi": "npm run openapi --workspace=back && npm run openapi:types --workspace=shared",
     "up": "docker compose up -d --build",
     "down": "docker compose down",
     "logs": "docker compose logs -f",

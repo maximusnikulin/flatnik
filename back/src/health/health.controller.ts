@@ -1,10 +1,14 @@
 import { Controller, Get } from '@nestjs/common'
-import type { HealthResponse } from '@flatnik/shared'
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger'
+import { HealthResponseDto } from './health.dto'
 
+@ApiTags('health')
 @Controller('health')
 export class HealthController {
+  /** Проверка живости бэкенда */
   @Get()
-  check(): HealthResponse {
+  @ApiOkResponse({ type: HealthResponseDto })
+  check(): HealthResponseDto {
     return {
       status: 'ok',
       service: 'back',

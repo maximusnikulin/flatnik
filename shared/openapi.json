@@ -1,0 +1,75 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/api/health": {
+      "get": {
+        "operationId": "HealthController_check",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Проверка живости бэкенда",
+        "tags": [
+          "health"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "flatnik API",
+    "description": "HTTP-контракт бэкенда flatnik",
+    "version": "0.0.0",
+    "contact": {}
+  },
+  "tags": [],
+  "servers": [],
+  "components": {
+    "schemas": {
+      "HealthResponseDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "Текущее состояние сервиса",
+            "enum": [
+              "ok",
+              "degraded"
+            ],
+            "example": "ok"
+          },
+          "service": {
+            "type": "string",
+            "description": "Имя сервиса, ответившего на запрос",
+            "example": "back"
+          },
+          "uptime": {
+            "type": "number",
+            "description": "Аптайм процесса в секундах",
+            "example": 1234
+          },
+          "timestamp": {
+            "type": "string",
+            "description": "Время формирования ответа, ISO 8601",
+            "format": "date-time",
+            "example": "2026-08-10T12:00:00.000Z"
+          }
+        },
+        "required": [
+          "status",
+          "service",
+          "uptime",
+          "timestamp"
+        ]
+      }
+    }
+  }
+}
