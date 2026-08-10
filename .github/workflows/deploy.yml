@@ -11,7 +11,7 @@ concurrency:
 
 env:
   APP_DIR: /srv/flatnik
-  REPO_SSH: [Email17]:maximusnikulin/flatnik.git
+  REPO_SSH: "[Email17]:maximusnikulin/flatnik.git"
   REGISTRY: ghcr.io
 
 jobs:
