@@ -2,10 +2,13 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-COPY package.json package-lock.json* ./
+# package.json всех workspaces нужны целиком: npm ci сверяется с lockfile
+# и падает, если какой-то из них отсутствует.
+COPY package.json package-lock.json ./
 COPY shared/package.json ./shared/
+COPY back/package.json ./back/
 COPY front/package.json ./front/
-RUN npm install --workspace=@flatnik/shared --workspace=@flatnik/front --include-workspace-root
+RUN npm ci
 
 COPY shared ./shared
 COPY front ./front
