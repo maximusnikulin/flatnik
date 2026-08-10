@@ -1,0 +1,9 @@
+# Секреты и локальные настройки
+.env
+.env.*
+!.env.example
+!.env.ci
+.claude/settings.local.json
+
+# OS
+.DS_Store
