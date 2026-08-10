@@ -1,8 +1,7 @@
-# Локально: docker compose up -d --build — образы собираются из исходников.
-# На сервере: IMAGE_TAG задан, образы тянутся из GHCR (сборки нет — мало RAM).
+# Образы собираются из исходников — и локально, и на сервере.
 services:
   back:
-    image: ${BACK_IMAGE:-flatnik-back:local}
+    image: flatnik-back:local
     build:
       context: .
       dockerfile: back/Dockerfile
@@ -18,7 +17,7 @@ services:
     restart: unless-stopped
 
   front:
-    image: ${FRONT_IMAGE:-flatnik-front:local}
+    image: flatnik-front:local
     build:
       context: .
       dockerfile: front/Dockerfile

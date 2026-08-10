@@ -11,46 +11,11 @@ concurrency:
 
 env:
   APP_DIR: /srv/flatnik
-  REPO_SSH: "[Email17]:maximusnikulin/flatnik.git"
-  REGISTRY: ghcr.io
+  # Кавычки обязательны: двоеточие в SSH-адресе ломает разбор YAML
+  REPO_SSH: "[Email20]:maximusnikulin/flatnik.git"
 
 jobs:
-  # Сборка на раннере: у сервера всего ~1.9 ГБ RAM, npm ci и vite build
-  # там не укладываются в память.
-  build:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    strategy:
-      matrix:
-        service: [back, front]
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Build and push ${{ matrix.service }}
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.service }}/Dockerfile
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}-${{ matrix.service }}:latest
-            ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ github.sha }}
-          cache-from: type=gha,scope=${{ matrix.service }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-
   deploy:
-    needs: build
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -81,22 +46,18 @@ jobs:
       - name: Deploy
         uses: appleboy/ssh-action@v1
         env:
-          GHCR_USER: ${{ github.actor }}
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO_NAME: ${{ github.repository }}
           SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: APP_DIR,REPO_SSH,GHCR_USER,GHCR_TOKEN,REPO_NAME,SHA
-          command_timeout: 15m
+          envs: APP_DIR,REPO_SSH,SHA
+          command_timeout: 30m
           script: |
             set -e
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/gh_flatnik -o IdentitiesOnly=yes"
 
-            # Compose-файл нужен из репозитория, поэтому clone остаётся.
             if [ ! -d "$APP_DIR/.git" ]; then
               mkdir -p "$APP_DIR"
               git clone "$REPO_SSH" "$APP_DIR"
@@ -106,16 +67,20 @@ jobs:
             git fetch --all
             git reset --hard "$SHA"
 
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            # На сервере ~1.9 ГБ RAM и общий диск — чистим перед сборкой,
+            # иначе слои и висячие образы быстро съедают место.
+            docker compose down --remove-orphans || true
+            docker builder prune -af
+            docker image prune -af
 
-            # Образы собраны на раннере — здесь только скачиваем и запускаем.
-            export BACK_IMAGE="ghcr.io/${REPO_NAME}-back:${SHA}"
-            export FRONT_IMAGE="ghcr.io/${REPO_NAME}-front:${SHA}"
+            echo "=== Свободно перед сборкой ==="
+            free -m | head -2
+            df -h / | tail -1
 
-            docker compose pull back front
-            docker compose up -d --no-build
+            docker compose up -d --build
+
+            docker builder prune -af
             docker image prune -f
-            docker logout ghcr.io
 
       - name: Health check and public URL
         uses: appleboy/ssh-action@v1
@@ -126,7 +91,7 @@ jobs:
           envs: APP_DIR
           script: |
             cd "$APP_DIR"
-            sleep 20
+            sleep 25
             echo "=== Контейнеры ==="
             docker compose ps
             echo "=== /api/health ==="

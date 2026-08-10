@@ -8,7 +8,7 @@ RUN npm install -g npm@10.9.2
 
 # package.json всех workspaces нужны целиком: npm ci сверяется с lockfile
 # и падает, если какой-то из них отсутствует.
-COPY package.json package-lock.json ./
+COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json ./shared/
 COPY back/package.json ./back/
 COPY front/package.json ./front/
