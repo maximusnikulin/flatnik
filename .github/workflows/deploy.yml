@@ -9,6 +9,10 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+env:
+  APP_DIR: /srv/flatnik
+  REPO_SSH: git@github.com:maximusnikulin/flatnik.git
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -17,30 +21,70 @@ jobs:
       contents: read
 
     steps:
-      - uses: actions/checkout@v4
+      # Первый запуск: создаём deploy-ключ и доверяем хосту github.com.
+      # Публичный ключ печатается в лог — его нужно один раз добавить
+      # в Settings → Deploy keys, иначе clone приватного репо не пройдёт.
+      - name: Ensure deploy key on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            mkdir -p ~/.ssh && chmod 700 ~/.ssh
+            if [ ! -f ~/.ssh/gh_flatnik ]; then
+              ssh-keygen -t ed25519 -N "" -C "flatnik-deploy" -f ~/.ssh/gh_flatnik
+            fi
+            ssh-keyscan -t rsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
+            sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
+            echo "----- DEPLOY PUBLIC KEY -----"
+            cat ~/.ssh/gh_flatnik.pub
+            echo "-----------------------------"
 
-      - name: Deploy over SSH
+      - name: Deploy
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
+          envs: APP_DIR,REPO_SSH
           script: |
             set -e
-            cd /srv/flatnik
+            export GIT_SSH_COMMAND="ssh -i ~/.ssh/gh_flatnik -o IdentitiesOnly=yes"
+
+            if [ ! -d "$APP_DIR/.git" ]; then
+              mkdir -p "$APP_DIR"
+              git clone "$REPO_SSH" "$APP_DIR"
+            fi
+
+            cd "$APP_DIR"
+            git remote set-url origin "$REPO_SSH"
             git fetch --all
             git reset --hard origin/main
+
             docker compose up -d --build
             docker image prune -f
 
-      - name: Show tunnel URL
+      - name: Health check and public URL
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
+          envs: APP_DIR
           script: |
-            cd /srv/flatnik
-            sleep 15
-            docker compose logs cloudflared 2>&1 | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' | tail -1
+            cd "$APP_DIR"
+            sleep 20
+
+            echo "=== Состояние контейнеров ==="
+            docker compose ps
+
+            echo "=== /api/health ==="
+            curl -fsS http://localhost:8080/api/health || echo "health не отвечает"
+
+            echo "=== Публичный URL ==="
+            docker compose logs cloudflared 2>&1 \
+              | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
+              | tail -1 || echo "URL пока не выдан, смотрите: docker compose logs cloudflared"
