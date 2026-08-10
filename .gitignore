@@ -1,3 +1,11 @@
+# Зависимости
+node_modules/
+
+# Сборка
+dist/
+build/
+*.tsbuildinfo
+
 # Секреты и локальные настройки
 .env
 .env.*
@@ -5,5 +13,11 @@
 !.env.ci
 .claude/settings.local.json
 
-# OS
+# Логи
+*.log
+npm-debug.log*
+
+# OS / IDE
 .DS_Store
+.idea/
+.vscode/

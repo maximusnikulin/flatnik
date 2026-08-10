@@ -1,0 +1,20 @@
+{
+  "name": "flatnik",
+  "private": true,
+  "workspaces": [
+    "back",
+    "front",
+    "shared"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=back & npm run dev --workspace=front",
+    "build": "npm run build --workspace=shared && npm run build --workspace=back && npm run build --workspace=front",
+    "up": "docker compose up -d --build",
+    "down": "docker compose down",
+    "logs": "docker compose logs -f",
+    "tunnel": "docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
