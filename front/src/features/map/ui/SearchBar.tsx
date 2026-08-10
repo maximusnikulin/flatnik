@@ -1,0 +1,127 @@
+import { useEffect, useState } from 'react'
+import type { SuggestResponseItem } from '@yandex/ymaps3-types'
+import { findAddress, useYmaps } from '../lib/ymaps'
+import { useMapStore } from '../model/map.store'
+
+/** Плавающая строка поиска адреса с саджестом Яндекса */
+export function SearchBar() {
+  const ymaps = useYmaps()
+  const selectedAddress = useMapStore((s) => s.selectedAddress)
+  const selectAddress = useMapStore((s) => s.selectAddress)
+  const clearSelection = useMapStore((s) => s.clearSelection)
+
+  const [text, setText] = useState('')
+  const [items, setItems] = useState<SuggestResponseItem[]>([])
+  const [isSearching, setSearching] = useState(false)
+
+  // Выбор адреса извне (клик по пину) отражается в строке поиска
+  useEffect(() => {
+    setText(selectedAddress?.address ?? '')
+    setItems([])
+  }, [selectedAddress])
+
+  // Саджест с debounce; устаревшие ответы отбрасываются
+  useEffect(() => {
+    if (ymaps.status !== 'ready') return
+    const query = text.trim()
+    if (query.length < 3 || query === selectedAddress?.address) {
+      setItems([])
+      return
+    }
+    let cancelled = false
+    const handle = window.setTimeout(() => {
+      ymaps3
+        .suggest({ text: query, types: ['house', 'street'], limit: 6 })
+        .then((response) => {
+          if (!cancelled) setItems([...response])
+        })
+        .catch(() => {
+          // Саджест может быть не включён для ключа — остаётся поиск по Enter
+          if (!cancelled) setItems([])
+        })
+    }, 300)
+    return () => {
+      cancelled = true
+      window.clearTimeout(handle)
+    }
+  }, [text, ymaps.status, selectedAddress])
+
+  const applyFound = async (query: { text?: string; uri?: string }) => {
+    setSearching(true)
+    try {
+      const found = await findAddress(query)
+      if (found) {
+        selectAddress(found)
+      }
+    } finally {
+      setSearching(false)
+      setItems([])
+    }
+  }
+
+  const handlePick = (item: SuggestResponseItem) => {
+    void applyFound(item.uri ? { uri: item.uri } : { text: item.address?.formattedAddress ?? item.title.text })
+  }
+
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault()
+    if (ymaps.status === 'ready' && text.trim().length >= 3) {
+      void applyFound({ text: text.trim() })
+    }
+  }
+
+  const handleClear = () => {
+    setText('')
+    setItems([])
+    clearSelection()
+  }
+
+  const isReady = ymaps.status === 'ready'
+
+  return (
+    <form className="search-bar" onSubmit={handleSubmit}>
+      <span className="search-bar__pin" aria-hidden>
+        <svg viewBox="0 0 24 24" width="20" height="20">
+          <path
+            fill="#eb4d3d"
+            d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"
+          />
+        </svg>
+      </span>
+      <input
+        value={text}
+        onChange={(event) => setText(event.target.value)}
+        placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
+        disabled={!isReady || isSearching}
+        aria-label="Адрес дома"
+      />
+      <button type="submit" className="search-bar__icon" disabled={!isReady} aria-label="Найти">
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            d="M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zm10 3.5-5-5"
+          />
+        </svg>
+      </button>
+      <button type="button" className="search-bar__icon" onClick={handleClear} aria-label="Очистить">
+        <svg viewBox="0 0 24 24" width="18" height="18">
+          <path fill="none" stroke="currentColor" strokeWidth="2" d="m6 6 12 12M18 6 6 18" />
+        </svg>
+      </button>
+      {items.length > 0 && (
+        <ul className="suggest-list">
+          {items.map((item, index) => (
+            <li key={item.uri ?? `${item.title.text}-${index}`}>
+              <button type="button" onClick={() => handlePick(item)}>
+                <span className="suggest-list__title">{item.title.text}</span>
+                {item.subtitle && <span className="suggest-list__subtitle">{item.subtitle.text}</span>}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </form>
+  )
+}
