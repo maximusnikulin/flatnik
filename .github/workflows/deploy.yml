@@ -78,7 +78,15 @@ jobs:
             free -m | head -2
             df -h / | tail -1
 
-            docker compose up -d --build
+            # При падении healthcheck compose пишет только "is unhealthy",
+            # поэтому логи контейнеров достаём сами.
+            docker compose up -d --build || {
+              echo "=== logs back ==="
+              docker compose logs --tail=120 back
+              echo "=== inspect back ==="
+              docker inspect --format '{{json .State.Health}}' flatnik-back-1 || true
+              exit 1
+            }
 
             docker builder prune -af
             docker image prune -f
