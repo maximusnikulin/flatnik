@@ -90,15 +90,19 @@ npm run tunnel
 
 Окружение `production` даёт изоляцию секретов и возможность включить ручное подтверждение выкатки.
 
-### Подготовка сервера (однократно)
+### Подготовка сервера
+
+Отдельных действий не требуется: workflow сам создаёт каталог `/srv/flatnik`, клонирует репозиторий и генерирует SSH-ключ, если его нет. Образы собираются на сервере, перед сборкой чистятся кеш builder'а и висячие образы — на VPS с ~2 ГБ RAM место иначе кончается.
+
+Единственный ручной шаг возникает при пересоздании сервера: шаг `Ensure deploy key on server` напечатает в лог новый публичный ключ, его надо добавить в `Settings → Deploy keys` с доступом только на чтение — репозиторий приватный.
+
+### Реестр npm
+
+В корне лежит `.npmrc` с `registry=https://registry.npmjs.org/`. Без него `package-lock.json`, сгенерированный за корпоративным VPN, содержит ссылки на внутренний Artifactory, и `npm ci` вне VPN зависает, а затем падает с `Exit handler never called!` — и на сервере, и на раннерах GitHub. Если lockfile обновляется из-под VPN, стоит проверить, что в нём нет внутренних хостов:
 
 ```bash
-mkdir -p /srv/flatnik && cd /srv/flatnik
-git clone https://github.com/maximusnikulin/flatnik.git .
-docker compose up -d --build
+grep -c 'registry.npmjs.org' package-lock.json
 ```
-
-Репозиторий приватный, поэтому серверу нужен доступ на чтение — deploy key или PAT в URL remote.
 
 ## Что дальше
 

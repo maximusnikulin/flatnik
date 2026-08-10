@@ -2,17 +2,13 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# npm 10.8.2 из образа падает с "Exit handler never called!" на workspaces,
-# при этом возвращает код 0 — сборка молча продолжается без зависимостей.
-RUN npm install -g npm@10.9.2
-
 # package.json всех workspaces нужны целиком: npm ci сверяется с lockfile
 # и падает, если какой-то из них отсутствует.
 COPY package.json package-lock.json .npmrc ./
 COPY shared/package.json ./shared/
 COPY back/package.json ./back/
 COPY front/package.json ./front/
-RUN npm ci && test -x node_modules/.bin/vite
+RUN npm ci
 
 COPY shared ./shared
 COPY front ./front

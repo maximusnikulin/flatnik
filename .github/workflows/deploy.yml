@@ -22,9 +22,9 @@ jobs:
       contents: read
 
     steps:
-      # Первый запуск: создаём deploy-ключ и доверяем хосту github.com.
-      # Публичный ключ печатается в лог — его нужно один раз добавить
-      # в Settings → Deploy keys.
+      # Идемпотентно: ключ и known_hosts уже есть, шаг нужен при
+      # пересоздании сервера. Если ключ создался заново — его публичную
+      # часть надо добавить в Settings → Deploy keys (см. README).
       - name: Ensure deploy key on server
         uses: appleboy/ssh-action@v1
         with:
@@ -36,12 +36,11 @@ jobs:
             mkdir -p ~/.ssh && chmod 700 ~/.ssh
             if [ ! -f ~/.ssh/gh_flatnik ]; then
               ssh-keygen -t ed25519 -N "" -C "flatnik-deploy" -f ~/.ssh/gh_flatnik
+              echo "----- НОВЫЙ DEPLOY KEY, добавить в Settings → Deploy keys -----"
+              cat ~/.ssh/gh_flatnik.pub
             fi
             ssh-keyscan -t rsa,ed25519 github.com >> ~/.ssh/known_hosts 2>/dev/null
             sort -u ~/.ssh/known_hosts -o ~/.ssh/known_hosts
-            echo "----- DEPLOY PUBLIC KEY -----"
-            cat ~/.ssh/gh_flatnik.pub
-            echo "-----------------------------"
 
       - name: Deploy
         uses: appleboy/ssh-action@v1
@@ -68,15 +67,11 @@ jobs:
             git fetch --all
             git reset --hard "$SHA"
 
-            # На сервере ~1.9 ГБ RAM и общий диск — чистим перед сборкой,
+            # На сервере ~2 ГБ RAM и общий диск — чистим перед сборкой,
             # иначе слои и висячие образы быстро съедают место.
             docker compose down --remove-orphans || true
             docker builder prune -af
             docker image prune -af
-
-            echo "=== Свободно перед сборкой ==="
-            free -m | head -2
-            df -h / | tail -1
 
             # При падении healthcheck compose пишет только "is unhealthy",
             # поэтому логи контейнеров достаём сами.
