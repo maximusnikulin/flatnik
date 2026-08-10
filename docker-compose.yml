@@ -1,5 +1,8 @@
+# Локально: docker compose up -d --build — образы собираются из исходников.
+# На сервере: IMAGE_TAG задан, образы тянутся из GHCR (сборки нет — мало RAM).
 services:
   back:
+    image: ${BACK_IMAGE:-flatnik-back:local}
     build:
       context: .
       dockerfile: back/Dockerfile
@@ -11,10 +14,11 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     restart: unless-stopped
 
   front:
+    image: ${FRONT_IMAGE:-flatnik-front:local}
     build:
       context: .
       dockerfile: front/Dockerfile
@@ -31,7 +35,7 @@ services:
     restart: unless-stopped
 
   # Публичный HTTPS-адрес без открытия портов и настройки DNS.
-  # URL смотреть в логах: npm run tunnel
+  # URL смотреть в логах: docker compose logs cloudflared
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate --url http://front:80

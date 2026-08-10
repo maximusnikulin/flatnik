@@ -11,34 +11,55 @@ concurrency:
 
 env:
   APP_DIR: /srv/flatnik
-  REPO_SSH: git@github.com:maximusnikulin/flatnik.git
+  REPO_SSH: [Email17]:maximusnikulin/flatnik.git
+  REGISTRY: ghcr.io
 
 jobs:
+  # Сборка на раннере: у сервера всего ~1.9 ГБ RAM, npm ci и vite build
+  # там не укладываются в память.
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: [back, front]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push ${{ matrix.service }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ github.repository }}-${{ matrix.service }}:latest
+            ghcr.io/${{ github.repository }}-${{ matrix.service }}:${{ github.sha }}
+          cache-from: type=gha,scope=${{ matrix.service }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
   deploy:
+    needs: build
     runs-on: ubuntu-latest
     environment: production
     permissions:
       contents: read
 
     steps:
-      - name: Server diagnostics
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
-          script: |
-            echo "=== RAM ==="; free -m
-            echo "=== SWAP ==="; swapon --show || echo "swap отсутствует"
-            echo "=== CPU ==="; nproc
-            echo "=== DISK ==="; df -h / /var/lib/docker 2>/dev/null
-            echo "=== LOAD ==="; cat /proc/loadavg
-            echo "=== DOCKER ==="; docker version --format '{{.Server.Version}}'
-            echo "=== OS ==="; cat /etc/os-release | head -2
-
       # Первый запуск: создаём deploy-ключ и доверяем хосту github.com.
       # Публичный ключ печатается в лог — его нужно один раз добавить
-      # в Settings → Deploy keys, иначе clone приватного репо не пройдёт.
+      # в Settings → Deploy keys.
       - name: Ensure deploy key on server
         uses: appleboy/ssh-action@v1
         with:
@@ -59,28 +80,42 @@ jobs:
 
       - name: Deploy
         uses: appleboy/ssh-action@v1
+        env:
+          GHCR_USER: ${{ github.actor }}
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO_NAME: ${{ github.repository }}
+          SHA: ${{ github.sha }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script_stop: true
-          envs: APP_DIR,REPO_SSH
+          envs: APP_DIR,REPO_SSH,GHCR_USER,GHCR_TOKEN,REPO_NAME,SHA
+          command_timeout: 15m
           script: |
             set -e
             export GIT_SSH_COMMAND="ssh -i ~/.ssh/gh_flatnik -o IdentitiesOnly=yes"
 
+            # Compose-файл нужен из репозитория, поэтому clone остаётся.
             if [ ! -d "$APP_DIR/.git" ]; then
               mkdir -p "$APP_DIR"
               git clone "$REPO_SSH" "$APP_DIR"
             fi
-
             cd "$APP_DIR"
             git remote set-url origin "$REPO_SSH"
             git fetch --all
-            git reset --hard origin/main
+            git reset --hard "$SHA"
 
-            docker compose up -d --build
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+
+            # Образы собраны на раннере — здесь только скачиваем и запускаем.
+            export BACK_IMAGE="ghcr.io/${REPO_NAME}-back:${SHA}"
+            export FRONT_IMAGE="ghcr.io/${REPO_NAME}-front:${SHA}"
+
+            docker compose pull back front
+            docker compose up -d --no-build
             docker image prune -f
+            docker logout ghcr.io
 
       - name: Health check and public URL
         uses: appleboy/ssh-action@v1
@@ -92,14 +127,11 @@ jobs:
           script: |
             cd "$APP_DIR"
             sleep 20
-
-            echo "=== Состояние контейнеров ==="
+            echo "=== Контейнеры ==="
             docker compose ps
-
             echo "=== /api/health ==="
             curl -fsS http://localhost:8080/api/health || echo "health не отвечает"
-
             echo "=== Публичный URL ==="
             docker compose logs cloudflared 2>&1 \
               | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
-              | tail -1 || echo "URL пока не выдан, смотрите: docker compose logs cloudflared"
+              | tail -1 || echo "URL пока не выдан"
