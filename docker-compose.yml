@@ -9,7 +9,9 @@ services:
       NODE_ENV: production
       PORT: 3000
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
+      # Именно 127.0.0.1: localhost в alpine резолвится и в ::1, а сервер
+      # слушает только IPv4 — busybox wget получал бы Connection refused.
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
       interval: 15s
       timeout: 5s
       retries: 5
@@ -27,7 +29,7 @@ services:
       back:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:80/"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/"]
       interval: 15s
       timeout: 5s
       retries: 5
