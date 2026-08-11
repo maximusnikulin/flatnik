@@ -1,0 +1,19 @@
+# Dev-образ: только зависимости. Исходники приезжают bind-mount'ом из
+# docker-compose.dev.yml, поэтому пересборка нужна лишь при правке package.json.
+# Контекст сборки — корень монорепо.
+FROM node:20-alpine
+WORKDIR /app
+
+# package.json всех workspaces нужны целиком: npm ci сверяется с lockfile
+# и падает, если какой-то из них отсутствует.
+COPY package.json package-lock.json .npmrc ./
+COPY shared/package.json ./shared/
+COPY back/package.json ./back/
+COPY front/package.json ./front/
+
+# NODE_ENV намеренно не production: нужны devDependencies, без @nestjs/cli
+# не запустится nest start --watch.
+RUN npm ci
+
+# Порт задаётся переменной PORT, публикует его только гейтвей.
+CMD ["npm", "run", "dev", "--workspace=@flatnik/back"]

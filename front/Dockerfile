@@ -23,8 +23,12 @@ ENV VITE_YANDEX_MAPS_API_KEY=$VITE_YANDEX_MAPS_API_KEY \
 RUN npm run build --workspace=@flatnik/shared \
  && npm run build --workspace=@flatnik/front
 
-FROM nginx:1.27-alpine AS runner
-COPY front/nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=builder /app/front/dist /usr/share/nginx/html
+# Раздаёт статику не этот образ, а gateway — сюда бандл только выкладывается.
+# Контейнер одноразовый: скопировал в volume front-dist и завершился, после чего
+# gateway стартует по condition: service_completed_successfully.
+FROM alpine:3.20 AS runner
+COPY --from=builder /app/front/dist /app/dist
 
-EXPOSE 80
+# rm перед копированием обязателен: volume переживает деплой, и без очистки в нём
+# остались бы ассеты прошлой сборки с другими хешами в именах.
+CMD ["sh", "-c", "rm -rf /srv/static/* && cp -a /app/dist/. /srv/static/"]

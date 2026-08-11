@@ -7,13 +7,16 @@
     "shared"
   ],
   "scripts": {
-    "dev": "npm run dev --workspace=back & npm run dev --workspace=front",
     "build": "npm run build --workspace=shared && npm run build --workspace=back && npm run build --workspace=front",
     "openapi": "npm run openapi --workspace=back && npm run openapi:types --workspace=shared",
     "up": "docker compose up -d --build",
     "down": "docker compose down",
     "logs": "docker compose logs -f",
     "tunnel": "docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'",
+    "up:dev": "docker compose -f docker-compose.dev.yml up -d --build",
+    "down:dev": "docker compose -f docker-compose.dev.yml down",
+    "logs:dev": "docker compose -f docker-compose.dev.yml logs -f",
+    "tunnel:dev": "docker compose -f docker-compose.dev.yml logs cloudflared | grep -o 'https://.*trycloudflare.com'",
     "tunnel:remote": "ssh -o RemoteCommand=none -o RequestTTY=no root@194.180.188.196 \"cd /srv/flatnik && docker compose logs cloudflared 2>&1 | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -1\""
   },
   "engines": {

@@ -1,0 +1,142 @@
+# Dev-стек: watch и HMR внутри Docker. Собирается из *.Dockerfile.dev — образы
+# несут только зависимости, исходники приезжают bind-mount'ом из этого каталога.
+# Production живёт в docker-compose.yml и собирается из обычных Dockerfile.
+#
+#   npm run up:dev     поднять            npm run logs:dev    логи
+#   npm run down:dev   погасить           npm run tunnel:dev  публичный URL
+#
+# Отдельное имя проекта: контейнеры и том с данными не пересекаются с prod-стеком,
+# поэтому down -v здесь не угрожает базе, поднятой через docker-compose.yml.
+name: flatnik-dev
+
+# Общая часть трёх node-сервисов: исходники с хоста плюс зависимости из образа.
+x-node-volumes:
+  &node-volumes # Корень монорепо целиком — правки на хосте сразу видны watcher'ам.
+  - .:/app
+  - /app/node_modules
+  # Кеш предбандленных зависимостей vite — тоже не с хоста.
+  - /app/front/node_modules
+
+# Инотифай-события не доходят через bind-mount с macOS, поэтому tsc и chokidar
+# переводим на опрос. Свои флаги у Nest CLI отсутствуют, только эти переменные.
+x-watch-env: &watch-env
+  TSC_WATCHFILE: DynamicPriorityPolling
+  TSC_WATCHDIRECTORY: DynamicPriorityPolling
+  CHOKIDAR_USEPOLLING: "1"
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      # Только loopback: чтобы можно было ходить в базу psql'ем с хоста.
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  back:
+    image: flatnik-back:dev
+    build:
+      context: .
+      dockerfile: back/Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      <<: *watch-env
+      NODE_ENV: development
+      PORT: ${BACK_PORT:-3000}
+      POSTGRES_HOST: ${POSTGRES_HOST:-db}
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+      JWT_SECRET: ${JWT_SECRET:-flatnik-dev-secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-30d}
+      SMARTCAPTCHA_SERVER_KEY: ${SMARTCAPTCHA_SERVER_KEY:-}
+    volumes: *node-volumes
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Именно 127.0.0.1: localhost в alpine резолвится и в ::1, а сервер
+      # слушает только IPv4 — busybox wget получал бы Connection refused.
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:${BACK_PORT:-3000}/api/health",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      # Первая компиляция под watch дольше запуска готового бандла.
+      start_period: 60s
+    restart: unless-stopped
+
+  front:
+    image: flatnik-front:dev
+    build:
+      context: .
+      dockerfile: front/Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      FRONT_PORT: ${FRONT_PORT:-5173}
+      # В dev ключи читаются на старте сервера, поэтому это environment,
+      # а не build-args, как в production-образе.
+      VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+      VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
+    volumes: *node-volumes
+    # Healthcheck'а нет намеренно: vite отвечает 403 на незнакомый Host,
+    # и проверка легко стала бы источником ложного unhealthy.
+    restart: unless-stopped
+
+  # Единственная точка входа: и статика, и /api приходят с одного origin,
+  # поэтому CORS в этой схеме не участвует вообще.
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./nginx/dev.conf.template:/etc/nginx/templates/default.conf.template:ro
+    environment:
+      # Их подставляет envsubst nginx-образа при старте.
+      BACK_PORT: ${BACK_PORT:-3000}
+      FRONT_PORT: ${FRONT_PORT:-5173}
+    depends_on:
+      back:
+        condition: service_healthy
+      front:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Публичный HTTPS-адрес без открытия портов и настройки DNS.
+  # URL смотреть в логах: npm run tunnel:dev
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://gateway:80
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  db-data:

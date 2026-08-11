@@ -9,16 +9,18 @@
 | `back/` | NestJS 10, TypeScript |
 | `front/` | React 18, Vite, Zustand, TanStack Query |
 | `shared/` | Общие типы и DTO для обеих частей |
-| Инфраструктура | Docker Compose, nginx, Cloudflare Tunnel |
+| Инфраструктура | Docker Compose, nginx-гейтвей, Cloudflare Tunnel |
 
 ## Структура
 
 ```
 flatnik/
-├── back/          # NestJS API
-├── front/         # React SPA
+├── back/          # NestJS API (Dockerfile + Dockerfile.dev)
+├── front/         # React SPA (Dockerfile + Dockerfile.dev)
 ├── shared/        # общие типы (@flatnik/shared)
-├── docker-compose.yml
+├── nginx/         # конфиги гейтвея: dev.conf.template и prod.conf.template
+├── docker-compose.yml       # production: собранные образы
+├── docker-compose.dev.yml   # разработка: watch и HMR
 └── .github/workflows/deploy.yml
 ```
 
@@ -26,16 +28,44 @@ flatnik/
 
 ## Локальная разработка
 
+Разработка идёт в Docker: `docker-compose.dev.yml` поднимает стек в watch-режиме,
+исходники монтируются с хоста, работают HMR фронта и перезапуск бэкенда.
+
 ```bash
-npm install                      # ставит зависимости всех workspaces сразу
-docker compose up -d postgres    # база данных (порт 5432 только на 127.0.0.1)
-npm run dev                      # back :3000 + front :5173
+npm install        # нужен для типов в IDE; в контейнерах зависимости свои
+npm run up:dev     # postgres + shared + back + front + gateway + туннель
+npm run logs:dev   # логи всех сервисов
+npm run down:dev   # остановить
 ```
 
-Открыть http://localhost:5173 — карта отзывов: поиск адреса, список квартир дома,
+Открыть http://localhost:8080 — карта отзывов: поиск адреса, список квартир дома,
 отзывы и форма добавления.
 
-Vite проксирует `/api` на `localhost:3000`, поэтому CORS в разработке не нужен.
+Правки в `front/src` приезжают в браузер без перезагрузки, в `back/src` —
+перезапускают Nest, в `shared/src` — пересобирают контракт (за это отвечает
+отдельный сервис `shared` с `tsc --watch`; без него back и front видели бы
+старый `shared/dist`).
+
+Всё идёт через гейтвей на одном origin: `/api/...` — в NestJS, остальное — в
+Vite вместе с его WebSocket'ом. Поэтому CORS не участвует ни в dev, ни в prod,
+а в коде фронта нет абсолютных адресов бэкенда.
+
+| Сервис dev-стека | Роль |
+|---|---|
+| `gateway` | nginx, `${GATEWAY_PORT}` → 80; единственный публикуемый порт |
+| `front` | vite dev server с HMR, внутренний `${FRONT_PORT}` |
+| `back` | `nest start --watch`, внутренний `${BACK_PORT}` |
+| `shared` | `tsc --watch` по контракту |
+| `postgres` | БД, `127.0.0.1:${POSTGRES_PORT}` для psql с хоста |
+| `cloudflared` | HTTPS-туннель к гейтвею (`npm run tunnel:dev`) |
+
+Имя dev-проекта — `flatnik-dev`, поэтому его контейнеры и том с данными не
+пересекаются с production-стеком из `docker-compose.yml`.
+
+Зависимости живут в named volume, а не берутся с хоста: в lockfile есть
+платформенные `@esbuild/*` и `@rollup/*`, и macOS-бинарники в linux-контейнере не
+запустятся. Следствие: после правки `package.json` том нужно пересоздать —
+`npm run down:dev -- -v && npm run up:dev`.
 
 Без ключей Яндекса приложение остаётся рабочим: вместо карты — заглушка со списком
 домов, по которым есть отзывы, а проверка капчи на бэкенде пропускается с
@@ -44,11 +74,14 @@ Vite проксирует `/api` на `localhost:3000`, поэтому CORS в �
 ### Переменные окружения
 
 Один файл `.env` в корне (образец — [.env.example](.env.example)) читают трое:
-docker compose (лежит рядом), back в dev-режиме (`envFilePath: ['.env', '../.env']`)
-и Vite (`envDir: '..'`). Всё имеет dev-дефолты, поэтому без `.env` тоже заведётся.
+docker compose (лежит рядом, оба файла — prod и dev), back
+(`envFilePath: ['.env', '../.env']`) и Vite (`envDir: '..'`). Всё имеет
+dev-дефолты, поэтому без `.env` тоже заведётся.
 
 | Переменная | Назначение |
 |---|---|
+| `GATEWAY_PORT` | порт гейтвея на хосте — единственный публикуемый (по умолчанию 8080) |
+| `BACK_PORT`, `FRONT_PORT` | внутренние порты back и vite; наружу не пробрасываются |
 | `POSTGRES_HOST/PORT/USER/PASSWORD/DB` | подключение к БД; этими же значениями инициализируется контейнер postgres |
 | `JWT_SECRET`, `JWT_EXPIRES_IN` | подпись и срок жизни токенов; на сервере секрет обязательно заменить |
 | `SMARTCAPTCHA_SERVER_KEY` | серверный ключ SmartCaptcha; пусто — проверка выключена |
@@ -73,34 +106,47 @@ SMS не отправляются: `POST /api/auth/request-code` печатае�
 бэкенда, `verify-code` обменивает его на JWT.
 
 ```bash
-curl -i -X POST localhost:3000/api/auth/request-code \
+curl -i -X POST localhost:8080/api/auth/request-code \
   -H 'Content-Type: application/json' -d '{"phone":"+79991234567"}'
-# код смотреть: docker compose logs back | grep 'Код' (или терминал npm run dev)
-curl -s -X POST localhost:3000/api/auth/verify-code \
+# код смотреть: npm run logs:dev | grep 'Код'
+curl -s -X POST localhost:8080/api/auth/verify-code \
   -H 'Content-Type: application/json' -d '{"phone":"+79991234567","code":"XXXXXX"}'
 ```
 
-Swagger UI со всем контрактом — http://localhost:3000/api/docs.
+Swagger UI со всем контрактом — http://localhost:8080/api/docs.
 
 ## Docker
 
+Два независимых стека, каждый со своими Dockerfile'ами:
+
+| Файл | Dockerfile'ы | Команды | Что внутри |
+|---|---|---|---|
+| `docker-compose.dev.yml` | `*/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` | watch + HMR, исходники с хоста |
+| `docker-compose.yml` | `*/Dockerfile` | `up`, `logs`, `down`, `tunnel` | собранные образы; этот же файл выкатывает деплой |
+
 ```bash
-npm run up           # сборка и запуск всех сервисов
+npm run up           # сборка и запуск production-стека
 npm run logs         # логи
 npm run tunnel       # публичный HTTPS-адрес
 npm run down         # остановить
 ```
 
+Production-стек:
+
 | Сервис | Порт | Назначение |
 |---|---|---|
-| `front` | `8080` → 80 | nginx: статика SPA + прокси `/api` на back |
-| `back` | внутренний 3000 | NestJS, наружу не публикуется |
-| `postgres` | `127.0.0.1:5432` | БД; порт только на loopback — для `npm run dev` вне Docker |
-| `cloudflared` | — | HTTPS-туннель к `front` |
+| `gateway` | `${GATEWAY_PORT}` → 80 | nginx: статика SPA + прокси `/api` на back |
+| `back` | внутренний `${BACK_PORT}` | NestJS, наружу не публикуется |
+| `front` | — | одноразовый: выкладывает бандл в volume `front-dist` и завершается |
+| `postgres` | `127.0.0.1:${POSTGRES_PORT}` | БД; порт только на loopback |
+| `cloudflared` | — | HTTPS-туннель к `gateway` |
 
 Локально: http://localhost:8080
 
-Бэкенд намеренно не имеет `ports` — он доступен только внутри сети compose, снаружи трафик идёт через nginx.
+Ни back, ни front не имеют `ports` — снаружи доступен только гейтвей, он же
+держит статику и API на одном origin. `docker-compose.override.yml` в проекте
+намеренно нет: он подхватывался бы автоматически, и dev-конфиг уехал бы в
+production вместе с `docker compose up -d --build` на сервере.
 
 Данные Postgres живут в named volume `postgres-data`: `docker compose down` их не
 трогает, а вот `down -v` удалит безвозвратно — на сервере не запускать. Схему БД на
@@ -117,7 +163,9 @@ curl http://localhost:8080/api/health
 { "status": "ok", "service": "back", "uptime": 42, "timestamp": "..." }
 ```
 
-У обоих сервисов настроен healthcheck, а `front` стартует только после того, как `back` станет healthy.
+Healthcheck'и есть у `postgres`, `back` и `gateway`; порядок старта задан через
+`depends_on`: `back` ждёт готовности базы, а `gateway` — и healthy-состояния
+`back`, и успешного завершения `front`, то есть появления бандла в volume.
 
 ## Публичный URL
 

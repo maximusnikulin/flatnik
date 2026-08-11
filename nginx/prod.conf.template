@@ -1,0 +1,31 @@
+# Гейтвей production: тот же контракт, что и в dev — статика и /api на одном origin.
+# ${BACK_PORT} подставляет envsubst nginx-образа (см. environment сервиса gateway).
+# Статика приезжает не из образа, а из volume front-dist: его наполняет сервис front.
+
+server {
+    listen 80;
+    server_name _;
+
+    root /srv/static;
+    index index.html;
+
+    # /api — в NestJS. Объявлено до location /, чтобы SPA-фоллбэк его не перехватил.
+    location /api/ {
+        proxy_pass http://back:${BACK_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Ассеты vite собирает с хешем в имени — можно кешировать навсегда.
+    location /assets/ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+
+    # SPA: любой неизвестный путь отдаём index.html
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+}

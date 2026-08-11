@@ -62,24 +62,22 @@ npm workspaces, три пакета:
 
 ```bash
 npm install                                   # ставит зависимости всех workspaces
-npm run dev                                   # back :3000 + front :5173 (см. оговорку ниже)
+npm run up:dev                                # запуск разработки — только в Docker
 npm run build                                 # shared → back → front, порядок обязателен
 ```
 
-Отдельные пакеты:
+**Корневого `npm run dev` больше нет: разработка идёт в dev-стеке Docker.** Причина —
+единый origin через гейтвей; вне Docker фронт остался бы без маршрута `/api`,
+потому что прокси из `vite.config.ts` убран. `npm install` в корне нужен ради типов
+в IDE, зависимости контейнеров живут в отдельном volume.
+
+Отдельные пакеты (сборка и тайпчек — их запускают на хосте, watch крутится в Docker):
 
 ```bash
 npm run build --workspace=@flatnik/shared     # tsc -p, обязателен перед back/front
-npm run dev   --workspace=@flatnik/shared     # tsc --watch, если правишь контракт
-npm run dev   --workspace=@flatnik/back       # nest start --watch
 npm run build --workspace=@flatnik/back       # nest build → back/dist
-npm run dev   --workspace=@flatnik/front      # vite dev server
 npm run build --workspace=@flatnik/front      # tsc -b (тайпчек) && vite build → front/dist
 ```
-
-Корневой `npm run dev` запускает два процесса через `&` в одном шелле: Ctrl-C гасит не
-всегда оба, освободившийся порт стоит проверить перед перезапуском. Для отладки одной
-половины удобнее два терминала с `--workspace`.
 
 Тайпчек фронта без сборки бандла: `npm run build --workspace=@flatnik/front` (у `front`
 в tsconfig `noEmit`, так что `tsc -b` — это именно проверка типов).
@@ -96,26 +94,62 @@ npm run build --workspace=@flatnik/front      # tsc -b (тайпчек) && vite 
 
 ## Docker
 
+Два независимых стека, и соответствие между ними строгое: **режим → compose-файл →
+Dockerfile**. Смешивать их не нужно, `docker-compose.override.yml` в проекте
+намеренно нет — он подхватывался бы автоматически, и dev-конфиг уехал бы в
+production вместе с `docker compose up -d --build`, который выполняет деплой.
+
+| Файл | Dockerfile'ы | Команды |
+|---|---|---|
+| `docker-compose.dev.yml` | `back/Dockerfile.dev`, `front/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` |
+| `docker-compose.yml` | `back/Dockerfile`, `front/Dockerfile` | `up`, `logs`, `down`, `tunnel` |
+
 ```bash
-npm run up       # docker compose up -d --build
-npm run logs     # docker compose logs -f
-npm run tunnel   # выдрать публичный HTTPS-URL из логов cloudflared
-npm run down     # docker compose down
+npm run up:dev   # разработка: watch + HMR
+npm run up       # production-сборка (её же выкатывает deploy.yml)
 ```
 
-Локально SPA открывается на http://localhost:8080, health — `curl http://localhost:8080/api/health`.
+В обоих режимах приложение открывается на http://localhost:8080, health —
+`curl http://localhost:8080/api/health`.
 
-Три сервиса:
+Общее для обоих стеков: **единственная точка входа — сервис `gateway`** (nginx,
+`${GATEWAY_PORT}` → 80). Ни `back`, ни `front` секции `ports` не имеют и снаружи
+недостижимы. Не добавляй им проброс порта «для удобства отладки» — это меняет
+модель доступа; отлаживать нужно через гейтвей, он же обеспечивает единый origin.
 
-| Сервис | Порт | Роль |
-|---|---|---|
-| `front` | `8080` → 80 | nginx: статика SPA + reverse-proxy `/api/` на `back:3000` |
-| `back` | внутренний 3000 | NestJS, наружу **не** публикуется |
-| `cloudflared` | — | quick-туннель к `front`, публичный HTTPS без DNS и открытых портов |
+Конфиг гейтвея не лежит в образе, а монтируется шаблоном из `nginx/`
+(`dev.conf.template` и `prod.conf.template`); порты в него подставляет envsubst
+nginx-образа из `environment`, поэтому переменные вроде `BACK_PORT` обязаны там быть.
 
-У `back` намеренно нет секции `ports`: снаружи он недостижим, весь трафик идёт через
-nginx. Не добавляй ему проброс порта «для удобства отладки» — это меняет модель доступа.
-`front` стартует только после `back` (`condition: service_healthy`).
+Dev-стек (`name: flatnik-dev`, контейнеры и том с данными не пересекаются с prod):
+
+| Сервис | Роль |
+|---|---|
+| `gateway` | nginx: `/api/` → back, всё остальное → vite вместе с HMR-сокетом |
+| `front` | `vite` на `${FRONT_PORT}`, исходники bind-mount'ом |
+| `back` | `nest start --watch` на `${BACK_PORT}` |
+| `shared` | `tsc --watch` по контракту — без него back и front видят старый `shared/dist` |
+| `postgres` | БД, `127.0.0.1:${POSTGRES_PORT}` |
+| `cloudflared` | quick-туннель к `gateway` |
+
+Prod-стек: те же `postgres`/`back`/`gateway`/`cloudflared`, но `front` —
+**одноразовый контейнер**: выкладывает собранный бандл в volume `front-dist` и
+завершается, а раздаёт его `gateway` (`condition: service_completed_successfully`).
+
+Три вещи в dev-стеке, которые ломаются, если их «упростить»:
+
+- **`node_modules` — named volume поверх bind-mount'а, а не с хоста.** В lockfile
+  есть платформенные `@esbuild/*` и `@rollup/*`; macOS-бинарники в linux-контейнере
+  не запускаются. После правки `package.json` том пересоздают:
+  `npm run down:dev -- -v && npm run up:dev`.
+- **Watch держится на polling.** Инотифай-события не проходят через bind-mount с
+  macOS, поэтому `TSC_WATCHFILE`/`TSC_WATCHDIRECTORY` в compose и `usePolling` в
+  `vite.config.ts`. Своих флагов для этого у Nest CLI нет.
+- **`server.hmr` в `vite.config.ts` не задан намеренно.** Клиент vite берёт хост и
+  порт сокета из адреса страницы, то есть из гейтвея, и через HTTPS-туннель сам
+  уходит на `wss`. Любое переопределение этот адрес сломает. По той же причине там
+  `allowedHosts: true`: домен quick-туннеля меняется при каждом рестарте, а vite
+  отвечает 403 на незнакомый `Host`.
 
 Адрес туннеля меняется при каждом перезапуске контейнера — ограничение бесплатных
 quick-туннелей, не баг.
@@ -124,22 +158,29 @@ Healthcheck'и обращаются на `127.0.0.1`, а не `localhost`: в al
 резолвится и в `::1`, а Nest слушает только IPv4 (`app.listen(port, '0.0.0.0')`), и
 busybox wget получал бы Connection refused. Не «упрощай» это до `localhost`.
 
+`deploy.yml` завязан на имена: контейнер `flatnik-back-1` в `docker inspect`,
+сервисы `back` и `cloudflared` в командах логов, порт `8080` в health-проверке.
+Поэтому в `docker-compose.yml` не появляется ключ `name:` (префикс контейнеров
+должен остаться `flatnik-`), а у `GATEWAY_PORT` дефолт — `8080`.
+
 ## Маршрутизация /api
 
 Префикс `api` задаётся один раз в `back/src/main.ts` через `app.setGlobalPrefix('api')`.
 Контроллеры объявляют путь без него: `@Controller('health')` даёт `/api/health`.
 
-Прокси на `/api` настроен в трёх независимых местах, и при изменении схемы роутов
-синхронизировать нужно все:
+Маршрутизацию `/api` задают два места, и при изменении схемы роутов синхронизировать
+нужно оба:
 
-1. `front/vite.config.ts` — dev-прокси на `http://localhost:3000` (переопределяется
-   переменной `VITE_API_TARGET`);
-2. `front/nginx.conf` — `location /api/` → `proxy_pass http://back:3000` в Docker;
-3. `back/src/main.ts` — глобальный префикс.
+1. `nginx/dev.conf.template` и `nginx/prod.conf.template` — `location /api/` →
+   `proxy_pass http://back:${BACK_PORT}`. Этот блок объявлен **до** `location /`,
+   иначе SPA-фоллбэк перехватил бы запросы к API;
+2. `back/src/app.config.ts` — `API_PREFIX`, применяемый через `setGlobalPrefix`.
 
-Благодаря прокси фронт всегда ходит на относительный `/api/...` — и в dev, и в prod
-это same-origin, поэтому CORS не участвует. `enableCors({ origin: true })` в `main.ts`
-оставлен на будущее (сторонние клиенты), а не потому что он нужен фронту.
+Фронт всегда ходит на относительный `/api/...`: гейтвей держит статику и API на
+одном origin, поэтому CORS не участвует нигде. В `main.ts` `enableCors` намеренно
+**нет** — появится сторонний клиент, он вернётся со списком доменов, а не с
+`origin: true`. Прокси в `vite.config.ts` тоже убран: в dev-стеке `/api` до vite не
+доходит, его забирает гейтвей.
 
 ## Состояние на фронте
 

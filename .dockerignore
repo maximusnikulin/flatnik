@@ -8,4 +8,11 @@ dist
 .claude
 *.log
 .DS_Store
+.idea
 README.md
+CLAUDE.md
+# Секреты в контекст сборки не отправляем: в образ они не попадают только
+# потому, что Dockerfile'ы копируют пути точечно, а не COPY . .
+.env
+.env.*
+!.env.example

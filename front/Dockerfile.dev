@@ -1,0 +1,18 @@
+# Dev-образ: только зависимости. Исходники приезжают bind-mount'ом из
+# docker-compose.dev.yml, поэтому пересборка нужна лишь при правке package.json.
+# Контекст сборки — корень монорепо.
+FROM node:20-alpine
+WORKDIR /app
+
+# package.json всех workspaces нужны целиком: npm ci сверяется с lockfile
+# и падает, если какой-то из них отсутствует.
+COPY package.json package-lock.json .npmrc ./
+COPY shared/package.json ./shared/
+COPY back/package.json ./back/
+COPY front/package.json ./front/
+
+RUN npm ci
+
+# ARG VITE_* здесь не нужны в отличие от production-образа: dev-сервер читает
+# переменные при старте, а не инлайнит их на этапе сборки.
+CMD ["npm", "run", "dev", "--workspace=@flatnik/front"]
