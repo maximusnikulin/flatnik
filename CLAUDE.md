@@ -95,14 +95,17 @@ npm run build --workspace=@flatnik/front      # tsc -b (тайпчек) && vite 
 ## Docker
 
 Два независимых стека, и соответствие между ними строгое: **режим → compose-файл →
-Dockerfile**. Смешивать их не нужно, `docker-compose.override.yml` в проекте
-намеренно нет — он подхватывался бы автоматически, и dev-конфиг уехал бы в
-production вместе с `docker compose up -d --build`, который выполняет деплой.
+Dockerfile**. Файл по умолчанию (`docker-compose.yml`) — это **dev-стек**: голый
+`docker compose ...` в корне работает с разработкой. Production подключается только
+явным `-f docker-compose.prod.yml` — этот флаг обязан стоять во всех prod-командах
+(`package.json` и `deploy.yml`), иначе на сервере поднялся бы dev-стек.
+`docker-compose.override.yml` в проекте намеренно нет — он подхватывался бы
+автоматически и незаметно смешал бы конфиги.
 
 | Файл | Dockerfile'ы | Команды |
 |---|---|---|
-| `docker-compose.dev.yml` | `back/Dockerfile.dev`, `front/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` |
-| `docker-compose.yml` | `back/Dockerfile`, `front/Dockerfile` | `up`, `logs`, `down`, `tunnel` |
+| `docker-compose.yml` | `back/Dockerfile.dev`, `front/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` |
+| `docker-compose.prod.yml` | `back/Dockerfile`, `front/Dockerfile` | `up`, `logs`, `down`, `tunnel` |
 
 ```bash
 npm run up:dev   # разработка: watch + HMR
@@ -140,8 +143,9 @@ Prod-стек: те же `postgres`/`back`/`gateway`/`cloudflared`, но `front`
 
 - **`node_modules` — named volume поверх bind-mount'а, а не с хоста.** В lockfile
   есть платформенные `@esbuild/*` и `@rollup/*`; macOS-бинарники в linux-контейнере
-  не запускаются. После правки `package.json` том пересоздают:
-  `npm run down:dev -- -v && npm run up:dev`.
+  не запускаются. Сам по себе том никогда не обновляется (копирование из образа —
+  только в пустой том), поэтому после правки `package.json` тома пересоздают:
+  `npm run rebuild:dev` — он удаляет только тома зависимостей, не трогая dev-базу.
 - **Watch держится на polling.** Инотифай-события не проходят через bind-mount с
   macOS, поэтому `TSC_WATCHFILE`/`TSC_WATCHDIRECTORY` в compose и `usePolling` в
   `vite.config.ts`. Своих флагов для этого у Nest CLI нет.
@@ -160,7 +164,7 @@ busybox wget получал бы Connection refused. Не «упрощай» э�
 
 `deploy.yml` завязан на имена: контейнер `flatnik-back-1` в `docker inspect`,
 сервисы `back` и `cloudflared` в командах логов, порт `8080` в health-проверке.
-Поэтому в `docker-compose.yml` не появляется ключ `name:` (префикс контейнеров
+Поэтому в `docker-compose.prod.yml` не появляется ключ `name:` (префикс контейнеров
 должен остаться `flatnik-`), а у `GATEWAY_PORT` дефолт — `8080`.
 
 ## Маршрутизация /api

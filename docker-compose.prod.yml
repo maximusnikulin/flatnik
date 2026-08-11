@@ -1,0 +1,121 @@
+# Production-стек: образы собираются из исходников — и локально, и на сервере.
+# Dev-режим с watch и HMR живёт в docker-compose.yml (npm run up:dev).
+# Этот файл подключается только явным -f docker-compose.prod.yml — файл по
+# умолчанию теперь dev, поэтому без -f деплой поднял бы dev-стек.
+# Секреты и ключи берутся из .env рядом с этим файлом (см. .env.example).
+#
+# Имя проекта не задаётся намеренно: префикс контейнеров должен остаться
+# flatnik-, на имя flatnik-back-1 опирается docker inspect в deploy.yml.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+    volumes:
+      # Данные живут в named volume: docker compose down их не трогает,
+      # а вот down -v удалит безвозвратно — не запускать на сервере.
+      - db-data:/var/lib/postgresql/data
+    ports:
+      # Только loopback: для запуска back вне Docker (npm run dev).
+      # Наружу порт не публикуется — модель доступа как у back.
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  back:
+    image: flatnik-back:local
+    build:
+      context: .
+      dockerfile: back/Dockerfile
+    environment:
+      NODE_ENV: production
+      PORT: ${BACK_PORT:-3000}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER:-flatnik}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
+      POSTGRES_DB: ${POSTGRES_DB:-flatnik}
+      JWT_SECRET: ${JWT_SECRET:-flatnik-dev-secret}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-30d}
+      SMARTCAPTCHA_SERVER_KEY: ${SMARTCAPTCHA_SERVER_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      # Именно 127.0.0.1: localhost в alpine резолвится и в ::1, а сервер
+      # слушает только IPv4 — busybox wget получал бы Connection refused.
+      test:
+        [
+          "CMD",
+          "wget",
+          "-qO-",
+          "http://127.0.0.1:${BACK_PORT:-3000}/api/health",
+        ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  # Одноразовый: выкладывает собранный бандл в volume и завершается.
+  # Раздаёт статику gateway, поэтому ни порта, ни рестарта здесь нет.
+  front:
+    image: flatnik-front:local
+    build:
+      context: .
+      dockerfile: front/Dockerfile
+      args:
+        # Vite инлайнит VITE_* в бандл при сборке — ключи попадают сюда,
+        # а не в environment рантайма.
+        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+        VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
+    volumes:
+      - front-dist:/srv/static
+    restart: "no"
+
+  # Единственная точка входа: и статика, и /api приходят с одного origin,
+  # поэтому CORS в этой схеме не участвует вообще.
+  gateway:
+    image: nginx:1.27-alpine
+    ports:
+      - "${GATEWAY_PORT:-8080}:80"
+    volumes:
+      - ./nginx/prod.conf.template:/etc/nginx/templates/default.conf.template:ro
+      - front-dist:/srv/static:ro
+    environment:
+      # Его подставляет envsubst nginx-образа при старте.
+      BACK_PORT: ${BACK_PORT:-3000}
+    depends_on:
+      back:
+        condition: service_healthy
+      front:
+        # Стартуем только когда бандл уже лежит в volume.
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/api/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Публичный HTTPS-адрес без открытия портов и настройки DNS.
+  # URL смотреть в логах: docker compose -f docker-compose.prod.yml logs cloudflared
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://gateway:80
+    depends_on:
+      gateway:
+        condition: service_started
+    restart: unless-stopped
+
+volumes:
+  db-data:
+  # Бандл между сборкой (front) и раздачей (gateway).
+  front-dist:

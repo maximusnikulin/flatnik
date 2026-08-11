@@ -19,8 +19,8 @@ flatnik/
 ├── front/         # React SPA (Dockerfile + Dockerfile.dev)
 ├── shared/        # общие типы (@flatnik/shared)
 ├── nginx/         # конфиги гейтвея: dev.conf.template и prod.conf.template
-├── docker-compose.yml       # production: собранные образы
-├── docker-compose.dev.yml   # разработка: watch и HMR
+├── docker-compose.yml       # разработка: watch и HMR (файл по умолчанию)
+├── docker-compose.prod.yml  # production: собранные образы
 └── .github/workflows/deploy.yml
 ```
 
@@ -28,7 +28,7 @@ flatnik/
 
 ## Локальная разработка
 
-Разработка идёт в Docker: `docker-compose.dev.yml` поднимает стек в watch-режиме,
+Разработка идёт в Docker: `docker-compose.yml` поднимает стек в watch-режиме,
 исходники монтируются с хоста, работают HMR фронта и перезапуск бэкенда.
 
 ```bash
@@ -60,12 +60,13 @@ Vite вместе с его WebSocket'ом. Поэтому CORS не участ�
 | `cloudflared` | HTTPS-туннель к гейтвею (`npm run tunnel:dev`) |
 
 Имя dev-проекта — `flatnik-dev`, поэтому его контейнеры и том с данными не
-пересекаются с production-стеком из `docker-compose.yml`.
+пересекаются с production-стеком из `docker-compose.prod.yml`.
 
 Зависимости живут в named volume, а не берутся с хоста: в lockfile есть
 платформенные `@esbuild/*` и `@rollup/*`, и macOS-бинарники в linux-контейнере не
-запустятся. Следствие: после правки `package.json` том нужно пересоздать —
-`npm run down:dev -- -v && npm run up:dev`.
+запустятся. Следствие: после правки `package.json` тома с зависимостями нужно
+пересоздать — `npm run rebuild:dev` (данные Postgres при этом не трогаются,
+в отличие от `down -v`).
 
 Без ключей Яндекса приложение остаётся рабочим: вместо карты — заглушка со списком
 домов, по которым есть отзывы, а проверка капчи на бэкенде пропускается с
@@ -121,8 +122,8 @@ Swagger UI со всем контрактом — http://localhost:8080/api/docs
 
 | Файл | Dockerfile'ы | Команды | Что внутри |
 |---|---|---|---|
-| `docker-compose.dev.yml` | `*/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` | watch + HMR, исходники с хоста |
-| `docker-compose.yml` | `*/Dockerfile` | `up`, `logs`, `down`, `tunnel` | собранные образы; этот же файл выкатывает деплой |
+| `docker-compose.yml` | `*/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` | watch + HMR, исходники с хоста; файл по умолчанию |
+| `docker-compose.prod.yml` | `*/Dockerfile` | `up`, `logs`, `down`, `tunnel` | собранные образы; этот же файл выкатывает деплой |
 
 ```bash
 npm run up           # сборка и запуск production-стека
@@ -144,11 +145,13 @@ Production-стек:
 Локально: http://localhost:8080
 
 Ни back, ни front не имеют `ports` — снаружи доступен только гейтвей, он же
-держит статику и API на одном origin. `docker-compose.override.yml` в проекте
-намеренно нет: он подхватывался бы автоматически, и dev-конфиг уехал бы в
-production вместе с `docker compose up -d --build` на сервере.
+держит статику и API на одном origin. Файл по умолчанию (`docker-compose.yml`) —
+это dev-стек, поэтому production всегда подключается явным
+`-f docker-compose.prod.yml`; этот флаг стоит во всех prod-командах `package.json`
+и `deploy.yml`. `docker-compose.override.yml` в проекте намеренно нет: он
+подхватывался бы автоматически и незаметно смешал бы конфиги.
 
-Данные Postgres живут в named volume `postgres-data`: `docker compose down` их не
+Данные Postgres живут в named volume `postgres-data`: `npm run down` их не
 трогает, а вот `down -v` удалит безвозвратно — на сервере не запускать. Схему БД на
 этапе скелета ведёт TypeORM `synchronize`; до появления реальных пользовательских
 данных его нужно заменить миграциями.
@@ -198,8 +201,8 @@ npm run tunnel
 Яндекса. Файл не под git, поэтому `git reset --hard` при деплое его не трогает;
 без него стек поднимется на dev-дефолтах — с дефолтным секретом и без капчи.
 Если `.env` появился после выката, нужен повторный деплой (`workflow_dispatch`
-или `docker compose up -d --build` на сервере): `VITE_*`-ключи инлайнятся в бандл
-при сборке образа front.
+или `docker compose -f docker-compose.prod.yml up -d --build` на сервере):
+`VITE_*`-ключи инлайнятся в бандл при сборке образа front.
 
 В остальном действий не требуется: workflow сам создаёт каталог `/srv/flatnik`, клонирует репозиторий и генерирует SSH-ключ, если его нет. Образы собираются на сервере, перед сборкой чистятся кеш builder'а и висячие образы — на VPS с ~2 ГБ RAM место иначе кончается.
 

@@ -1,24 +1,44 @@
-# Production-стек: образы собираются из исходников — и локально, и на сервере.
-# Dev-режим с watch и HMR живёт в docker-compose.dev.yml (npm run up:dev).
-# Секреты и ключи берутся из .env рядом с этим файлом (см. .env.example).
+# Dev-стек: watch и HMR внутри Docker. Собирается из *.Dockerfile.dev — образы
+# несут только зависимости, исходники приезжают bind-mount'ом из этого каталога.
+# Production живёт в docker-compose.prod.yml и собирается из обычных Dockerfile.
 #
-# Имя проекта не задаётся намеренно: префикс контейнеров должен остаться
-# flatnik-, на имя flatnik-back-1 опирается docker inspect в deploy.yml.
+#   npm run up:dev       поднять            npm run logs:dev    логи
+#   npm run down:dev     погасить           npm run tunnel:dev  публичный URL
+#   npm run rebuild:dev  пересоздать тома зависимостей (после правки package.json)
+#
+# Отдельное имя проекта: контейнеры и том с данными не пересекаются с prod-стеком,
+# поэтому down -v здесь не угрожает базе, поднятой через docker-compose.prod.yml.
+name: flatnik-dev
+
+# Общая часть трёх node-сервисов: исходники с хоста плюс зависимости из образа.
+x-node-volumes:
+  &node-volumes # Корень монорепо целиком — правки на хосте сразу видны watcher'ам.
+  - .:/app
+  - node_modules:/app/node_modules
+  # Кеш предбандленных зависимостей vite — тоже не с хоста.
+  - front_node_modules:/app/front/node_modules
+
+# Инотифай-события не доходят через bind-mount с macOS, поэтому tsc и chokidar
+# переводим на опрос. Свои флаги у Nest CLI отсутствуют, только эти переменные.
+x-watch-env: &watch-env
+  TSC_WATCHFILE: DynamicPriorityPolling
+  TSC_WATCHDIRECTORY: DynamicPriorityPolling
+  CHOKIDAR_USEPOLLING: "1"
+
 services:
   db:
     image: postgres:16-alpine
+    env_file:
+      - .env
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-flatnik}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
       POSTGRES_DB: ${POSTGRES_DB:-flatnik}
     volumes:
-      # Данные живут в named volume: docker compose down их не трогает,
-      # а вот down -v удалит безвозвратно — не запускать на сервере.
       - db-data:/var/lib/postgresql/data
     ports:
-      # Только loopback: для запуска back вне Docker (npm run dev).
-      # Наружу порт не публикуется — модель доступа как у back.
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+      # Только loopback: чтобы можно было ходить в базу psql'ем с хоста.
+      - "127.0.0.1:${POSTGRES_PORT}:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
@@ -28,21 +48,27 @@ services:
     restart: unless-stopped
 
   back:
-    image: flatnik-back:local
+    image: flatnik-back:dev
     build:
       context: .
-      dockerfile: back/Dockerfile
+      dockerfile: back/Dockerfile.dev
+    env_file:
+      - .env
     environment:
-      NODE_ENV: production
+      <<: *watch-env
+      NODE_ENV: development
       PORT: ${BACK_PORT:-3000}
+      # Жёстко, а не из .env: там localhost/порт для psql с хоста, а внутри
+      # сети compose база всегда db:5432 (env_file перекрывается environment).
       POSTGRES_HOST: db
-      POSTGRES_PORT: 5432
+      POSTGRES_PORT: "5432"
       POSTGRES_USER: ${POSTGRES_USER:-flatnik}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-flatnik}
       POSTGRES_DB: ${POSTGRES_DB:-flatnik}
       JWT_SECRET: ${JWT_SECRET:-flatnik-dev-secret}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-30d}
       SMARTCAPTCHA_SERVER_KEY: ${SMARTCAPTCHA_SERVER_KEY:-}
+    volumes: *node-volumes
     depends_on:
       db:
         condition: service_healthy
@@ -56,27 +82,30 @@ services:
           "-qO-",
           "http://127.0.0.1:${BACK_PORT:-3000}/api/health",
         ]
-      interval: 15s
+      interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 15s
+      retries: 10
+      # Первая компиляция под watch дольше запуска готового бандла.
+      start_period: 60s
     restart: unless-stopped
 
-  # Одноразовый: выкладывает собранный бандл в volume и завершается.
-  # Раздаёт статику gateway, поэтому ни порта, ни рестарта здесь нет.
   front:
-    image: flatnik-front:local
+    image: flatnik-front:dev
     build:
       context: .
-      dockerfile: front/Dockerfile
-      args:
-        # Vite инлайнит VITE_* в бандл при сборке — ключи попадают сюда,
-        # а не в environment рантайма.
-        VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
-        VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
-    volumes:
-      - front-dist:/srv/static
-    restart: "no"
+      dockerfile: front/Dockerfile.dev
+    env_file:
+      - .env
+    environment:
+      FRONT_PORT: ${FRONT_PORT:-5173}
+      # В dev ключи читаются на старте сервера, поэтому это environment,
+      # а не build-args, как в production-образе.
+      VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
+      VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
+    volumes: *node-volumes
+    # Healthcheck'а нет намеренно: vite отвечает 403 на незнакомый Host,
+    # и проверка легко стала бы источником ложного unhealthy.
+    restart: unless-stopped
 
   # Единственная точка входа: и статика, и /api приходят с одного origin,
   # поэтому CORS в этой схеме не участвует вообще.
@@ -85,17 +114,16 @@ services:
     ports:
       - "${GATEWAY_PORT:-8080}:80"
     volumes:
-      - ./nginx/prod.conf.template:/etc/nginx/templates/default.conf.template:ro
-      - front-dist:/srv/static:ro
+      - ./nginx/dev.conf.template:/etc/nginx/templates/default.conf.template:ro
     environment:
-      # Его подставляет envsubst nginx-образа при старте.
+      # Их подставляет envsubst nginx-образа при старте.
       BACK_PORT: ${BACK_PORT:-3000}
+      FRONT_PORT: ${FRONT_PORT:-5173}
     depends_on:
       back:
         condition: service_healthy
       front:
-        # Стартуем только когда бандл уже лежит в volume.
-        condition: service_completed_successfully
+        condition: service_started
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1:80/api/health"]
       interval: 15s
@@ -104,7 +132,7 @@ services:
     restart: unless-stopped
 
   # Публичный HTTPS-адрес без открытия портов и настройки DNS.
-  # URL смотреть в логах: docker compose logs cloudflared
+  # URL смотреть в логах: npm run tunnel:dev
   cloudflared:
     image: cloudflare/cloudflared:latest
     command: tunnel --no-autoupdate --url http://gateway:80
@@ -115,5 +143,5 @@ services:
 
 volumes:
   db-data:
-  # Бандл между сборкой (front) и раздачей (gateway).
-  front-dist:
+  front_node_modules:
+  node_modules:

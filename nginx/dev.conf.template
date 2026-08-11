@@ -1,6 +1,6 @@
 # Гейтвей dev-режима: единственная точка входа, front и back на одном origin.
 # Шаблон, а не готовый конфиг: nginx-образ подставляет ${BACK_PORT} и ${FRONT_PORT}
-# через envsubst на старте (см. environment сервиса gateway в docker-compose.dev.yml).
+# через envsubst на старте (см. environment сервиса gateway в docker-compose.yml).
 
 # Апгрейд до WebSocket нужен HMR-сокету vite. Пустой Upgrade превращаем в
 # Connection: close, иначе обычные запросы уйдут с мусорным заголовком.

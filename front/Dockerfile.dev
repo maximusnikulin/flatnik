@@ -1,5 +1,5 @@
 # Dev-образ: только зависимости. Исходники приезжают bind-mount'ом из
-# docker-compose.dev.yml, поэтому пересборка нужна лишь при правке package.json.
+# docker-compose.yml, поэтому пересборка нужна лишь при правке package.json.
 # Контекст сборки — корень монорепо.
 FROM node:20-alpine
 WORKDIR /app

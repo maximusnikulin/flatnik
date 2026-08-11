@@ -67,17 +67,21 @@ jobs:
             git fetch --all
             git reset --hard "$SHA"
 
+            # Явный -f обязателен: файл по умолчанию (docker-compose.yml) — это
+            # dev-стек, и голый docker compose up поднял бы его в production.
+            COMPOSE="docker compose -f docker-compose.prod.yml"
+
             # На сервере ~2 ГБ RAM и общий диск — чистим перед сборкой,
             # иначе слои и висячие образы быстро съедают место.
-            docker compose down --remove-orphans || true
+            $COMPOSE down --remove-orphans || true
             docker builder prune -af
             docker image prune -af
 
             # При падении healthcheck compose пишет только "is unhealthy",
             # поэтому логи контейнеров достаём сами.
-            docker compose up -d --build || {
+            $COMPOSE up -d --build || {
               echo "=== logs back ==="
-              docker compose logs --tail=120 back
+              $COMPOSE logs --tail=120 back
               echo "=== inspect back ==="
               docker inspect --format '{{json .State.Health}}' flatnik-back-1 || true
               exit 1
@@ -97,10 +101,10 @@ jobs:
             cd "$APP_DIR"
             sleep 25
             echo "=== Контейнеры ==="
-            docker compose ps
+            docker compose -f docker-compose.prod.yml ps
             echo "=== /api/health ==="
             curl -fsS http://localhost:8080/api/health || echo "health не отвечает"
             echo "=== Публичный URL ==="
-            docker compose logs cloudflared 2>&1 \
+            docker compose -f docker-compose.prod.yml logs cloudflared 2>&1 \
               | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
               | tail -1 || echo "URL пока не выдан"
