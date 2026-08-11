@@ -13,12 +13,19 @@ server {
     listen 80;
     server_name _;
 
+    # Встроенный DNS Docker'а. Без resolver'а и переменных в proxy_pass nginx
+    # резолвит имена front/back один раз на старте: пересозданный контейнер
+    # получает новый IP, и гейтвей отдаёт 502 до собственного рестарта.
+    # Переменная заставляет nginx перерезолвить имя с учётом valid=10s.
+    resolver 127.0.0.11 valid=10s;
+
     # Загрузка исходников в dev идёт без сжатия и большими пачками — лимит снимаем.
     client_max_body_size 20m;
 
     # /api — в NestJS. Объявлено до location /, чтобы SPA-фоллбэк его не перехватил.
     location /api/ {
-        proxy_pass http://back:${BACK_PORT};
+        set $back_upstream http://back:${BACK_PORT};
+        proxy_pass $back_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -28,7 +35,8 @@ server {
     # Всё остальное — vite dev server вместе с его HMR-сокетом. Отдельный порт
     # для HMR не нужен: клиент vite стучится в origin страницы, то есть сюда же.
     location / {
-        proxy_pass http://front:${FRONT_PORT};
+        set $front_upstream http://front:${FRONT_PORT};
+        proxy_pass $front_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
