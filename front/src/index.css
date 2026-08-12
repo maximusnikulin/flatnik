@@ -188,6 +188,23 @@ textarea {
   border-radius: 0;
 }
 
+/* Сообщение поиска: адрес не найден или геокодер недоступен */
+.search-bar__note {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  padding: 10px 14px;
+  background: var(--color-surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-pin);
+  font-size: 13px;
+  line-height: 1.4;
+  z-index: 3;
+}
+
 .suggest-list {
   position: absolute;
   top: calc(100% + 8px);

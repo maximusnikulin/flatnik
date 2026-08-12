@@ -13,11 +13,13 @@ export function SearchBar() {
   const [text, setText] = useState('')
   const [items, setItems] = useState<SuggestResponseItem[]>([])
   const [isSearching, setSearching] = useState(false)
+  const [note, setNote] = useState<string | null>(null)
 
   // Выбор адреса извне (клик по пину) отражается в строке поиска
   useEffect(() => {
     setText(selectedAddress?.address ?? '')
     setItems([])
+    setNote(null)
   }, [selectedAddress])
 
   // Саджест с debounce; устаревшие ответы отбрасываются
@@ -48,10 +50,15 @@ export function SearchBar() {
 
   const applyFound = async (query: { text?: string; uri?: string }) => {
     setSearching(true)
+    setNote(null)
     try {
-      const found = await findAddress(query)
-      if (found) {
-        selectAddress(found)
+      const result = await findAddress(query)
+      if (result.status === 'found') {
+        selectAddress(result.address)
+      } else if (result.status === 'not-found') {
+        setNote('Такой адрес не найден. Уточните улицу и номер дома.')
+      } else {
+        setNote(`Поиск адреса недоступен: ${result.message}`)
       }
     } finally {
       setSearching(false)
@@ -73,6 +80,7 @@ export function SearchBar() {
   const handleClear = () => {
     setText('')
     setItems([])
+    setNote(null)
     clearSelection()
   }
 
@@ -110,6 +118,7 @@ export function SearchBar() {
           <path fill="none" stroke="currentColor" strokeWidth="2" d="m6 6 12 12M18 6 6 18" />
         </svg>
       </button>
+      {note && <p className="search-bar__note">{note}</p>}
       {items.length > 0 && (
         <ul className="suggest-list">
           {items.map((item, index) => (
