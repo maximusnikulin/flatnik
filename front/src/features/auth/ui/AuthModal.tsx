@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { useAuthStore } from '../model/auth.store'
 import { useRequestCodeMutation, useVerifyCodeMutation } from '../api/auth.api'
 
@@ -13,17 +14,31 @@ export function AuthModal() {
 
   const requestCode = useRequestCodeMutation()
   const verifyCode = useVerifyCodeMutation()
+  const captcha = useCaptcha()
 
   if (!isOpen) return null
 
-  const handleRequest = (event: React.FormEvent) => {
+  // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
+  // заблокированной, иначе второй клик откроет второе задание
+  const isRequesting = captcha.isRunning || requestCode.isPending
+
+  // Капча до запроса кода: она защищает от спама SMS, поэтому задание должно
+  // быть пройдено раньше, чем бэкенд возьмётся генерировать код
+  const handleRequest = async (event: React.FormEvent) => {
     event.preventDefault()
-    requestCode.mutate(phone, {
-      onSuccess: () => {
-        setStep('code')
-        verifyCode.reset()
+
+    const captchaResult = await captcha.getToken()
+    if (!captchaResult.ok) return
+
+    requestCode.mutate(
+      { phone, captchaToken: captchaResult.token },
+      {
+        onSuccess: () => {
+          setStep('code')
+          verifyCode.reset()
+        },
       },
-    })
+    )
   }
 
   const handleVerify = (event: React.FormEvent) => {
@@ -63,9 +78,10 @@ export function AuthModal() {
                 required
               />
             </label>
+            {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
-            <button type="submit" className="btn-primary" disabled={requestCode.isPending}>
-              {requestCode.isPending ? 'Отправляем…' : 'Получить код'}
+            <button type="submit" className="btn-primary" disabled={isRequesting}>
+              {isRequesting ? 'Отправляем…' : 'Получить код'}
             </button>
           </form>
         ) : (

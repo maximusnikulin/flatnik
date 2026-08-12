@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
-import { IsString, Matches } from 'class-validator'
+import { IsOptional, IsString, Matches } from 'class-validator'
 
 /** Убирает пробелы, скобки и дефисы, приводит 8XXX/7XXX к +7XXX */
 function normalizePhone(value: unknown): unknown {
@@ -11,7 +11,12 @@ function normalizePhone(value: unknown): unknown {
   return digits
 }
 
-export class RequestCodeDto {
+/**
+ * Только телефон. Наследники расходятся, а не выстраиваются в цепочку:
+ * капча нужна на выдаче кода и не нужна на его проверке, а при
+ * `VerifyCodeDto extends RequestCodeDto` токен утёк бы и в verify-code.
+ */
+class PhoneDto {
   /** Телефон в российском формате */
   @ApiProperty({ example: '+79991234567' })
   @Transform(({ value }) => normalizePhone(value))
@@ -19,7 +24,14 @@ export class RequestCodeDto {
   phone!: string
 }
 
-export class VerifyCodeDto extends RequestCodeDto {
+export class RequestCodeDto extends PhoneDto {
+  /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+  @IsOptional()
+  @IsString()
+  captchaToken?: string
+}
+
+export class VerifyCodeDto extends PhoneDto {
   /** Шестизначный код из лога бэкенда */
   @ApiProperty({ example: '123456' })
   @IsString()

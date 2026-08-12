@@ -1,5 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common'
 import { JwtService } from '@nestjs/jwt'
+import { CaptchaService } from '../captcha/captcha.service'
 import { UsersService } from '../users/users.service'
 import type { User } from '../users/user.entity'
 import type { JwtPayload } from './auth.types'
@@ -26,9 +27,18 @@ export class AuthService {
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
+    private readonly captchaService: CaptchaService,
   ) {}
 
-  requestCode(phone: string): void {
+  /**
+   * Капча стоит на выдаче кода, а не на его проверке: это единственный шаг,
+   * заставляющий систему отправить SMS — то есть тратить деньги и беспокоить
+   * владельца номера. Проверяем до генерации, иначе перезапрос бота сбрасывал
+   * бы код, уже выданный человеку на тот же телефон.
+   */
+  async requestCode(phone: string, captchaToken?: string, ip?: string): Promise<void> {
+    await this.captchaService.validate(captchaToken, ip)
+
     const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')
     this.pendingCodes.set(phone, { code, expiresAt: Date.now() + CODE_TTL_MS })
     // Тот самый лог, из которого берётся код вместо SMS

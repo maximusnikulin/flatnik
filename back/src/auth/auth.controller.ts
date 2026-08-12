@@ -1,11 +1,22 @@
-import { Body, Controller, Get, HttpCode, NotFoundException, Post, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  NotFoundException,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
 import {
   ApiBearerAuth,
+  ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
+import type { Request } from 'express'
 import { AuthService } from './auth.service'
 import { UsersService } from '../users/users.service'
 import { JwtAuthGuard } from './jwt-auth.guard'
@@ -25,8 +36,9 @@ export class AuthController {
   @Post('request-code')
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Код сгенерирован и записан в лог' })
-  requestCode(@Body() dto: RequestCodeDto): void {
-    this.authService.requestCode(dto.phone)
+  @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
+  requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<void> {
+    return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
   }
 
   /** Обменять код из лога на JWT */

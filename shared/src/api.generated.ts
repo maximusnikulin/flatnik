@@ -174,6 +174,8 @@ export interface components {
              * @example +79991234567
              */
             phone: string;
+            /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+            captchaToken?: string;
         };
         VerifyCodeDto: {
             /**
@@ -354,6 +356,13 @@ export interface operations {
         responses: {
             /** @description Код сгенерирован и записан в лог */
             204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Не пройдена проверка капчи */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };

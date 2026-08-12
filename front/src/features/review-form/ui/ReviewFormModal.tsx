@@ -6,7 +6,7 @@ import { useAuthStore } from '../../auth/model/auth.store'
 import { meQuery } from '../../auth/api/auth.api'
 import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
-import { getCaptchaToken } from '../lib/smart-captcha'
+import { useCaptcha } from '../../../shared/lib/use-captcha'
 
 interface ReviewFormModalProps {
   address: string
@@ -38,7 +38,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
   const token = useAuthStore((s) => s.token)
   const { data: me } = useQuery(meQuery(Boolean(token)))
   const mutation = useCreateReviewMutation()
-  const [captchaState, setCaptchaState] = useState<'idle' | 'running' | 'failed'>('idle')
+  const captcha = useCaptcha()
 
   // Предзаполняем «Ваше имя» из профиля один раз, не затирая ввод
   useEffect(() => {
@@ -50,18 +50,8 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
 
-    let captchaToken: string | undefined
-    const sitekey = import.meta.env.VITE_SMARTCAPTCHA_CLIENT_KEY
-    if (sitekey) {
-      setCaptchaState('running')
-      try {
-        captchaToken = await getCaptchaToken(sitekey)
-      } catch {
-        setCaptchaState('failed')
-        return
-      }
-      setCaptchaState('idle')
-    }
+    const captchaResult = await captcha.getToken()
+    if (!captchaResult.ok) return
 
     const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text, authorName } =
       useReviewFormStore.getState()
@@ -77,7 +67,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
         periodFrom: periodFrom || undefined,
         periodTo: periodTo || undefined,
         authorName: authorName || undefined,
-        captchaToken,
+        captchaToken: captchaResult.token,
       },
       {
         onSuccess: (created) => {
@@ -93,7 +83,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
     )
   }
 
-  const isBusy = captchaState === 'running' || mutation.isPending
+  const isBusy = captcha.isRunning || mutation.isPending
 
   return (
     <div className="modal-overlay" onClick={form.close}>
@@ -190,9 +180,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
             />
           </label>
 
-          {captchaState === 'failed' && (
-            <p className="form-error">Не удалось пройти проверку капчи, попробуйте ещё раз.</p>
-          )}
+          {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
           {mutation.error && !(mutation.error instanceof ApiError && mutation.error.status === 401) && (
             <p className="form-error">{mutation.error.message}</p>
           )}
