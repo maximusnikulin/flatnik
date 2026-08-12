@@ -34,9 +34,21 @@ npm run up:dev   # разработка — только в Docker (единый
 npm run build    # shared → back → front, порядок обязателен
 ```
 
-**Тестов и линтеров нет** — ни Jest/Vitest, ни ESLint/Prettier; не предлагай
-`npm test`/`npm run lint`. Единственная проверка — компиляция TypeScript в `strict`
-и healthcheck'и контейнеров. Нужны тесты — это отдельное решение, согласуй.
+Проверка типов — в каждом пакете своя, запускается из корня:
+
+```bash
+npm run lint --workspace=@flatnik/back    # shared → tsc --noEmit по back
+npm run lint --workspace=@flatnik/front   # shared → tsc --noEmit по front
+```
+
+Правил `.ts`/`.tsx` в пакете — прогони его `lint`; правил оба — оба. Общего скрипта
+по монорепозиторию нет намеренно: проверять чужой пакет на каждую правку дорого.
+Подробности и обязательность — в `back/agents.md` и `front/agents.md`.
+
+**Тестов и настоящих линтеров нет** — ни Jest/Vitest, ни ESLint/Prettier; не предлагай
+`npm test`. `lint` здесь — это `tsc --noEmit`, а не ESLint: компиляция в `strict` и
+healthcheck'и контейнеров — единственные проверки. Нужны тесты или ESLint — это
+отдельное решение, согласуй.
 
 ## Docker
 

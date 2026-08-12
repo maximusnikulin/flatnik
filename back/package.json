@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "nest start --watch",
+    "lint": "npm --prefix ../shared run build && tsc -p tsconfig.json --noEmit",
     "build": "nest build",
     "start:prod": "node dist/main.js",
     "openapi": "nest build && OPENAPI_GEN=1 node dist/openapi.js"

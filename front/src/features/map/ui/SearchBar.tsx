@@ -49,7 +49,7 @@ export function SearchBar() {
     }
   }, [text, ymaps.status, selectedAddress])
 
-  const applyFound = async (query: { text?: string; uri?: string }) => {
+  const applyFound = async (query: { text: string }) => {
     setSearching(true)
     setNote(null)
     try {

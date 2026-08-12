@@ -14,7 +14,7 @@
   --radius-panel: 16px;
   --radius-control: 12px;
   --shadow-panel: 0 4px 24px rgba(0, 0, 0, 0.12);
-  --panel-width: 380px;
+  --panel-width: 460px;
 }
 
 * {
@@ -120,6 +120,14 @@ textarea {
   font-size: 13px;
   transform: none;
   flex: none;
+}
+
+/* Отметка выбранного дома: точка без числа — не перекрывает здание под ней */
+.map-pin.-dot {
+  width: 25px;
+  height: 25px;
+  border-width: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
 /* Пин на карте — индикатор, а не кнопка: клик проходит на здание под ним */

@@ -1,4 +1,3 @@
-import { SearchOptions } from "@yandex/ymaps3-types";
 import React, { useSyncExternalStore } from "react";
 import ReactDOM from "react-dom";
 
@@ -100,15 +99,26 @@ export type FindAddressResult =
   | { status: "error"; message: string };
 
 /**
- * Геокодирует координаты в адрес через Geocoder API Яндекса.
- * query.text должен содержать координаты в формате "lon,lat" (обратное геокодирование).
+ * Геокодирует строку в адрес через Geocoder API Яндекса.
+ * В `text` — либо адрес текстом, либо координаты "lon,lat" (обратное геокодирование).
  * Берёт первый результат с координатами.
+ *
+ * `uri` из саджеста здесь не принимается: Geocoder REST API его не поддерживает.
  */
 export async function findAddress(
-  query: Pick<SearchOptions, "text" | "uri">,
+  query: { text: string },
 ): Promise<FindAddressResult> {
-  const geocodeApiKey = import.meta.env.VITE_YANDEX_MAPS_API_KEY;
-  const url = `https://geocode-maps.yandex.ru/v1/?geocode=${encodeURIComponent(query.text)}&apikey=${encodeURIComponent(geocodeApiKey)}&lang=ru_RU&format=json&results=1`;
+  // Тот же ключ, что у JS API: без него карта уходит в status 'disabled',
+  // но findAddress экспортирован и может быть вызван раньше — отвечаем явно,
+  // а не уходим в запрос с apikey=undefined
+  if (!apiKey) {
+    return {
+      status: "error",
+      message: "не задан VITE_YANDEX_MAPS_API_KEY",
+    };
+  }
+
+  const url = `https://geocode-maps.yandex.ru/v1/?geocode=${encodeURIComponent(query.text)}&apikey=${encodeURIComponent(apiKey)}&lang=ru_RU&format=json&results=1`;
 
   let response: Response;
   try {

@@ -103,6 +103,7 @@ export function MapView({ onSelectHouse }: MapViewProps) {
     YMapDefaultSchemeLayer,
     YMapDefaultFeaturesLayer,
     YMapListener,
+    YMapMarker,
   } = ymaps.components;
 
   return (
@@ -116,6 +117,21 @@ export function MapView({ onSelectHouse }: MapViewProps) {
           Пытались layer="buildings", но события не приходили вовсе.
         */}
         <YMapListener layer="any" onClick={handleClick} />
+        {/*
+          Пин отмечает выбранный дом. blockEvents обязателен: ymaps3 оборачивает
+          наш DOM в свой элемент с pointer-events: auto, поэтому клик по пину не
+          доходит до слоя buildings, не проходит фильтр в handleClick и сбрасывает
+          выбор — по своей же подсветке нельзя кликнуть. Гасить pointer-events
+          через CSS бесполезно: событие ловит обёртка, а не наш div.
+        */}
+        {selectedAddress && (
+          <YMapMarker
+            coordinates={[selectedAddress.lon, selectedAddress.lat]}
+            blockEvents
+          >
+            <div className="map-pin -dot" />
+          </YMapMarker>
+        )}
       </YMap>
     </>
   );
