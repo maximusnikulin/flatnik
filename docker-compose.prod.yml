@@ -17,10 +17,11 @@ services:
       # Данные живут в named volume: docker compose down их не трогает,
       # а вот down -v удалит безвозвратно — не запускать на сервере.
       - db-data:/var/lib/postgresql/data
-    ports:
-      # Только loopback: для запуска back вне Docker (npm run dev).
-      # Наружу порт не публикуется — модель доступа как у back.
-      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    # Порт наружу намеренно не публикуется. Сценарий «back вне Docker» — это
+    # разработка, для неё есть docker-compose.yml; на сервере back ходит в базу
+    # по сети compose (POSTGRES_HOST=db), а публикация 127.0.0.1:5432 только
+    # роняла деплой, когда порт на хосте уже был кем-то занят.
+    # Нужен psql на сервере: docker compose -f docker-compose.prod.yml exec db psql -U flatnik
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
