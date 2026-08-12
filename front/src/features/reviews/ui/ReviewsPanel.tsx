@@ -5,18 +5,25 @@ import { ReviewCard } from './ReviewCard'
 interface ReviewsPanelProps {
   apartmentId: string
   apartmentNumber: string
+  entrance: string
   onBack: () => void
   onAddReview: () => void
 }
 
 /** Панель отзывов одной квартиры */
-export function ReviewsPanel({ apartmentId, apartmentNumber, onBack, onAddReview }: ReviewsPanelProps) {
+export function ReviewsPanel({
+  apartmentId,
+  apartmentNumber,
+  entrance,
+  onBack,
+  onAddReview,
+}: ReviewsPanelProps) {
   const { data, isPending, error } = useQuery(apartmentReviewsQuery(apartmentId))
 
   return (
     <section className="floating-panel">
       <button type="button" className="back-link" onClick={onBack}>
-        ← Назад
+        ← Подъезд {entrance}
       </button>
       <h2 className="panel-title">Квартира {apartmentNumber}</h2>
 

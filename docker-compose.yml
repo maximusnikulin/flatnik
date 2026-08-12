@@ -101,8 +101,6 @@ services:
       # В dev ключи читаются на старте сервера, поэтому это environment,
       # а не build-args, как в production-образе.
       VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
-      VITE_YANDEX_SEARCH_API_KEY: ${VITE_YANDEX_SEARCH_API_KEY:-}
-      VITE_YANDEX_SUGGEST_API_KEY: ${VITE_YANDEX_SUGGEST_API_KEY:-}
       VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
     volumes: *node-volumes
     # Healthcheck'а нет намеренно: vite отвечает 403 на незнакомый Host,

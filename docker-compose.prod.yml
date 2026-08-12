@@ -75,8 +75,6 @@ services:
         # Vite инлайнит VITE_* в бандл при сборке — ключи попадают сюда,
         # а не в environment рантайма.
         VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
-        VITE_YANDEX_SEARCH_API_KEY: ${VITE_YANDEX_SEARCH_API_KEY:-}
-        VITE_YANDEX_SUGGEST_API_KEY: ${VITE_YANDEX_SUGGEST_API_KEY:-}
         VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
     volumes:
       - front-dist:/srv/static

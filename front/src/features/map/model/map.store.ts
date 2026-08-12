@@ -15,9 +15,16 @@ export interface SelectedApartment {
 interface MapSelectionState {
   /** Выбранный на карте или через поиск адрес */
   selectedAddress: SelectedAddress | null
+  /** Подъезд, чьи квартиры открыты; null — показан список подъездов */
+  selectedEntrance: string | null
   /** Квартира, чьи отзывы открыты */
   selectedApartment: SelectedApartment | null
+  /** Последняя позиция карты — чтобы не улетала в центр при сбросе */
+  lastCenter: [number, number] | null
+  lastZoom: number | null
   selectAddress: (address: SelectedAddress) => void
+  selectEntrance: (entrance: string) => void
+  clearEntrance: () => void
   selectApartment: (apartment: SelectedApartment) => void
   clearApartment: () => void
   clearSelection: () => void
@@ -25,9 +32,26 @@ interface MapSelectionState {
 
 export const useMapStore = create<MapSelectionState>((set) => ({
   selectedAddress: null,
+  selectedEntrance: null,
   selectedApartment: null,
-  selectAddress: (selectedAddress) => set({ selectedAddress, selectedApartment: null }),
-  selectApartment: (selectedApartment) => set({ selectedApartment }),
+  lastCenter: null,
+  lastZoom: null,
+  // Новый дом сбрасывает всю вложенную навигацию и запоминает позицию
+  selectAddress: (selectedAddress) =>
+    set({
+      selectedAddress,
+      selectedEntrance: null,
+      selectedApartment: null,
+      lastCenter: [selectedAddress.lon, selectedAddress.lat],
+      lastZoom: 17,
+    }),
+  selectEntrance: (selectedEntrance) => set({ selectedEntrance, selectedApartment: null }),
+  clearEntrance: () => set({ selectedEntrance: null, selectedApartment: null }),
+  // Отзыв может быть создан в подъезде, который ещё не выбран, — открываем его вместе с квартирой
+  selectApartment: (selectedApartment) =>
+    set({ selectedApartment, selectedEntrance: selectedApartment.entrance }),
   clearApartment: () => set({ selectedApartment: null }),
-  clearSelection: () => set({ selectedAddress: null, selectedApartment: null }),
+  // Сброс выбора не меняет позицию карты — она останется где была
+  clearSelection: () =>
+    set({ selectedAddress: null, selectedEntrance: null, selectedApartment: null }),
 }))

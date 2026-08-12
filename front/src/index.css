@@ -29,8 +29,9 @@ body,
 
 body {
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif;
   color: var(--color-text);
   background: var(--color-surface-muted);
 }
@@ -121,6 +122,30 @@ textarea {
   flex: none;
 }
 
+/* Пин на карте — индикатор, а не кнопка: клик проходит на здание под ним */
+.map-pin.-static {
+  pointer-events: none;
+}
+
+/* Сообщение о неудачном клике по зданию: снизу по центру, чтобы не попадать
+   под строку поиска — на мобильной раскладке она занимает всю ширину */
+.map-note {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: calc(100vw - 32px);
+  margin: 0;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-panel);
+  color: var(--color-pin);
+  font-size: 13px;
+  line-height: 1.4;
+  z-index: 4;
+}
+
 /* Левая колонка: поиск + панель */
 .side-panel {
   position: absolute;
@@ -203,6 +228,7 @@ textarea {
   font-size: 13px;
   line-height: 1.4;
   z-index: 3;
+  overflow-wrap: break-word;
 }
 
 .suggest-list {
@@ -305,9 +331,29 @@ textarea {
   background: var(--color-border);
 }
 
+/* Левая часть строки: заголовок и подпись под ним */
+.apartment-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.apartment-row__caption {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .apartment-row__badges {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+.apartment-row__chevron {
+  color: var(--color-text-secondary);
+  font-size: 20px;
+  line-height: 1;
 }
 
 .badge {

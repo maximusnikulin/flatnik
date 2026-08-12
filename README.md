@@ -87,22 +87,20 @@ dev-дефолты, поэтому без `.env` тоже заведётся.
 | `JWT_SECRET`, `JWT_EXPIRES_IN` | подпись и срок жизни токенов; на сервере секрет обязательно заменить |
 | `SMARTCAPTCHA_SERVER_KEY` | серверный ключ SmartCaptcha; пусто — проверка выключена |
 | `VITE_SMARTCAPTCHA_CLIENT_KEY` | клиентский ключ SmartCaptcha (инлайнится в бандл при сборке) |
-| `VITE_YANDEX_MAPS_API_KEY` | ключ Яндекс Карт JS API; пусто — вместо карты заглушка |
-| `VITE_YANDEX_SEARCH_API_KEY` | ключ Geocoder API (поиск адреса); пусто — берётся ключ карты |
-| `VITE_YANDEX_SUGGEST_API_KEY` | ключ Suggest API (подсказки адреса); пусто — берётся ключ карты |
+| `VITE_YANDEX_MAPS_API_KEY` | ключ Яндекс Карт — карта, Geocoder и Suggest; пусто — вместо карты заглушка |
 
 ### Ключи Яндекса
 
-- **Карты**: бесплатный ключ «JavaScript API и HTTP Геокодер» выдаётся в
+- **Карты**: ключ выдаётся в
   [кабинете разработчика](https://developer.tech.yandex.ru/services/). Положить в
-  `VITE_YANDEX_MAPS_API_KEY`.
-- **Поиск адреса и подсказки**: `ymaps3.search` и `ymaps3.suggest` — это Geocoder API
-  и Suggest API, отдельные HTTP-сервисы со своими ключами и тарифами. Ключ JS API их
-  не авторизует: запрос с ним сервис отклоняет, и поиск в строке адреса не работает.
-  Ключи передаются рантайму через `setApikeys` (`front/src/features/map/lib/ymaps.ts`);
-  если `VITE_YANDEX_SEARCH_API_KEY` и `VITE_YANDEX_SUGGEST_API_KEY` пусты, берётся
-  ключ карты — этого достаточно, когда в кабинете все три сервиса подключены к
-  одному ключу.
+  `VITE_YANDEX_MAPS_API_KEY` — он один на все три сервиса.
+- **Поиск адреса и подсказки**: `ymaps3.search` (строка поиска и адрес по клику
+  в здание) и `ymaps3.suggest` — это Geocoder API и Suggest API, отдельные
+  HTTP-сервисы. Ключ авторизует их только если оба подключены к нему в кабинете;
+  иначе сервис отклоняет запрос и поиск адреса не работает, хотя карта рисуется.
+  Ключ передаётся им явно через `setApikeys`
+  (`front/src/features/map/lib/ymaps.ts`) — без этого вызова запрос уходит
+  с ключом JS API и тоже получает отказ.
 - **SmartCaptcha**: капча создаётся в [Яндекс Облаке](https://console.yandex.cloud/)
   (сервис Yandex SmartCaptcha), выдаёт пару «ключ клиента» / «ключ сервера» —
   `VITE_SMARTCAPTCHA_CLIENT_KEY` и `SMARTCAPTCHA_SERVER_KEY`.
