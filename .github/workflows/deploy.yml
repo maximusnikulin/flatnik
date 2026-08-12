@@ -67,6 +67,38 @@ jobs:
             git fetch --all
             git reset --hard "$SHA"
 
+            # Боевые секреты лежат в $APP_DIR/.env, которого нет в репозитории
+            # (создаётся руками, см. README). Без этой проверки его пропажа не
+            # была бы ошибкой: у всех переменных в docker-compose.prod.yml есть
+            # dev-дефолты, поэтому стек поднялся бы зелёным и прошёл health, но
+            # работал бы с JWT_SECRET=flatnik-dev-secret и паролем БД flatnik.
+            # Проверяем до $COMPOSE down — иначе остановленный деплой оставил бы
+            # сайт лежать.
+            if [ ! -f .env ]; then
+              echo "Нет $APP_DIR/.env — создайте его по образцу .env.example"
+              exit 1
+            fi
+
+            env_value() { sed -n "s/^$1=//p" .env | tail -1; }
+
+            for name in JWT_SECRET POSTGRES_PASSWORD; do
+              if [ -z "$(env_value "$name")" ]; then
+                echo "$name не задан в $APP_DIR/.env — деплой остановлен"
+                exit 1
+              fi
+            done
+
+            if [ "$(env_value JWT_SECRET)" = "flatnik-dev-secret" ] \
+               || [ "$(env_value POSTGRES_PASSWORD)" = "flatnik" ]; then
+              echo "В $APP_DIR/.env остались dev-значения секретов — деплой остановлен"
+              exit 1
+            fi
+
+            # Не фатально: сервис поднимется, просто без карт или без капчи.
+            for name in VITE_YANDEX_MAPS_API_KEY VITE_SMARTCAPTCHA_CLIENT_KEY SMARTCAPTCHA_SERVER_KEY; do
+              [ -n "$(env_value "$name")" ] || echo "ВНИМАНИЕ: $name пуст в .env"
+            done
+
             # Явный -f обязателен: файл по умолчанию (docker-compose.yml) — это
             # dev-стек, и голый docker compose up поднял бы его в production.
             COMPOSE="docker compose -f docker-compose.prod.yml"
