@@ -29,9 +29,9 @@ npm workspaces:
 ## Команды
 
 ```bash
-npm install      # зависимости всех workspaces; нужен для типов в IDE
-npm run up:dev   # разработка — только в Docker (единый origin через гейтвей)
-npm run build    # shared → back → front, порядок обязателен
+npm install                    # зависимости всех workspaces; нужен для типов в IDE
+docker compose up -d --build   # разработка — только в Docker (единый origin через гейтвей)
+npm run build                  # shared → back → front, порядок обязателен
 ```
 
 Проверка типов — в каждом пакете своя, запускается из корня:
@@ -53,14 +53,14 @@ healthcheck'и контейнеров — единственные провер�
 ## Docker
 
 Два стека; файл по умолчанию (`docker-compose.yml`) — **dev**. Production — только
-явным `-f docker-compose.prod.yml`; флаг обязан стоять во всех prod-командах
-(`package.json`, `deploy.yml`), иначе на сервере поднялся бы dev-стек.
+явным `-f docker-compose.prod.yml`; флаг обязан стоять в каждой prod-команде
+(в том числе в `deploy.yml`), иначе на сервере поднялся бы dev-стек.
 `docker-compose.override.yml` намеренно отсутствует.
 
-| Файл | Dockerfile'ы | Команды |
+| Файл | Dockerfile'ы | Как вызывать |
 |---|---|---|
-| `docker-compose.yml` (dev) | `*/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `rebuild:dev`, `tunnel:dev` |
-| `docker-compose.prod.yml` | `*/Dockerfile` | `up`, `logs`, `down`, `tunnel` |
+| `docker-compose.yml` (dev) | `*/Dockerfile.dev` | `docker compose ...` без флагов; плюс `npm run rebuild:dev` |
+| `docker-compose.prod.yml` | `*/Dockerfile` | `docker compose -f docker-compose.prod.yml ...` |
 
 Приложение — http://localhost:8080, health — `curl http://localhost:8080/api/health`.
 

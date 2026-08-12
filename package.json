@@ -9,16 +9,7 @@
   "scripts": {
     "build": "npm run build --workspace=shared && npm run build --workspace=back && npm run build --workspace=front",
     "openapi": "npm run openapi --workspace=back && npm run openapi:types --workspace=shared",
-    "up": "docker compose -f docker-compose.prod.yml up -d --build",
-    "down": "docker compose -f docker-compose.prod.yml down",
-    "logs": "docker compose -f docker-compose.prod.yml logs -f",
-    "tunnel": "docker compose -f docker-compose.prod.yml logs cloudflared | grep -o 'https://.*trycloudflare.com'",
-    "up:dev": "docker compose up -d --build",
-    "rebuild:dev": "docker compose down && docker volume rm -f flatnik-dev_node_modules flatnik-dev_front_node_modules && docker compose up -d --build",
-    "down:dev": "docker compose down",
-    "logs:dev": "docker compose logs -f",
-    "tunnel:dev": "docker compose logs cloudflared | grep -o 'https://.*trycloudflare.com'",
-    "tunnel:remote": "ssh -o RemoteCommand=none -o RequestTTY=no root@194.180.188.196 \"cd /srv/flatnik && docker compose -f docker-compose.prod.yml logs cloudflared 2>&1 | grep -oE 'https://[a-z0-9-]+\\.trycloudflare\\.com' | tail -1\""
+    "rebuild:dev": "docker compose down && docker volume rm -f flatnik-dev_node_modules flatnik-dev_front_node_modules && docker compose up -d --build"
   },
   "engines": {
     "node": ">=20"

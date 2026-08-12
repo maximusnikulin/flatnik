@@ -32,10 +32,10 @@ flatnik/
 исходники монтируются с хоста, работают HMR фронта и перезапуск бэкенда.
 
 ```bash
-npm install        # нужен для типов в IDE; в контейнерах зависимости свои
-npm run up:dev     # postgres + shared + back + front + gateway + туннель
-npm run logs:dev   # логи всех сервисов
-npm run down:dev   # остановить
+npm install                    # нужен для типов в IDE; в контейнерах зависимости свои
+docker compose up -d --build   # postgres + shared + back + front + gateway + туннель
+docker compose logs -f         # логи всех сервисов
+docker compose down            # остановить
 ```
 
 Открыть http://localhost:8080 — карта отзывов: поиск адреса, список квартир дома,
@@ -57,7 +57,7 @@ Vite вместе с его WebSocket'ом. Поэтому CORS не участ�
 | `back` | `nest start --watch`, внутренний `${BACK_PORT}` |
 | `shared` | `tsc --watch` по контракту |
 | `postgres` | БД, `127.0.0.1:${POSTGRES_PORT}` для psql с хоста |
-| `cloudflared` | HTTPS-туннель к гейтвею (`npm run tunnel:dev`) |
+| `cloudflared` | HTTPS-туннель к гейтвею (URL — в `docker compose logs cloudflared`) |
 
 Имя dev-проекта — `flatnik-dev`, поэтому его контейнеры и том с данными не
 пересекаются с production-стеком из `docker-compose.prod.yml`.
@@ -116,7 +116,7 @@ SMS не отправляются: `POST /api/auth/request-code` печатае�
 ```bash
 curl -i -X POST localhost:8080/api/auth/request-code \
   -H 'Content-Type: application/json' -d '{"phone":"+79991234567"}'
-# код смотреть: npm run logs:dev | grep 'Код'
+# код смотреть: docker compose logs back | grep 'Код'
 curl -s -X POST localhost:8080/api/auth/verify-code \
   -H 'Content-Type: application/json' -d '{"phone":"+79991234567","code":"XXXXXX"}'
 ```
@@ -127,16 +127,15 @@ Swagger UI со всем контрактом — http://localhost:8080/api/docs
 
 Два независимых стека, каждый со своими Dockerfile'ами:
 
-| Файл | Dockerfile'ы | Команды | Что внутри |
+| Файл | Dockerfile'ы | Как подключается | Что внутри |
 |---|---|---|---|
-| `docker-compose.yml` | `*/Dockerfile.dev` | `up:dev`, `logs:dev`, `down:dev`, `tunnel:dev` | watch + HMR, исходники с хоста; файл по умолчанию |
-| `docker-compose.prod.yml` | `*/Dockerfile` | `up`, `logs`, `down`, `tunnel` | собранные образы; этот же файл выкатывает деплой |
+| `docker-compose.yml` | `*/Dockerfile.dev` | по умолчанию, без флагов | watch + HMR, исходники с хоста |
+| `docker-compose.prod.yml` | `*/Dockerfile` | явным `-f docker-compose.prod.yml` | собранные образы; этот же файл выкатывает деплой |
 
 ```bash
-npm run up           # сборка и запуск production-стека
-npm run logs         # логи
-npm run tunnel       # публичный HTTPS-адрес
-npm run down         # остановить
+docker compose -f docker-compose.prod.yml up -d --build   # сборка и запуск production-стека
+docker compose -f docker-compose.prod.yml logs -f         # логи
+docker compose -f docker-compose.prod.yml down            # остановить
 ```
 
 Production-стек:
@@ -154,11 +153,11 @@ Production-стек:
 Ни back, ни front не имеют `ports` — снаружи доступен только гейтвей, он же
 держит статику и API на одном origin. Файл по умолчанию (`docker-compose.yml`) —
 это dev-стек, поэтому production всегда подключается явным
-`-f docker-compose.prod.yml`; этот флаг стоит во всех prod-командах `package.json`
-и `deploy.yml`. `docker-compose.override.yml` в проекте намеренно нет: он
+`-f docker-compose.prod.yml`; без этого флага на сервере поднялся бы dev-стек,
+и в `deploy.yml` он стоит везде. `docker-compose.override.yml` в проекте намеренно нет: он
 подхватывался бы автоматически и незаметно смешал бы конфиги.
 
-Данные Postgres живут в named volume `postgres-data`: `npm run down` их не
+Данные Postgres живут в named volume `postgres-data`: обычный `down` их не
 трогает, а вот `down -v` удалит безвозвратно — на сервере не запускать. Схему БД на
 этапе скелета ведёт TypeORM `synchronize`; до появления реальных пользовательских
 данных его нужно заменить миграциями.
@@ -181,8 +180,10 @@ Healthcheck'и есть у `postgres`, `back` и `gateway`; порядок ст�
 
 `cloudflared` поднимает HTTPS-туннель и выдаёт адрес вида `https://<случайные-слова>.trycloudflare.com`. Порты 80/443 на сервере открывать не нужно, DNS не настраивается, сертификат выдаётся автоматически.
 
+Адрес печатается в логи контейнера:
+
 ```bash
-npm run tunnel
+docker compose -f docker-compose.prod.yml logs cloudflared | grep -o 'https://.*trycloudflare.com'
 ```
 
 Адрес меняется при каждом перезапуске контейнера — это ограничение бесплатных quick-туннелей. Для постоянного адреса понадобится named tunnel с токеном Cloudflare.

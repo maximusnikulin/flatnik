@@ -1,5 +1,5 @@
 # Production-стек: образы собираются из исходников — и локально, и на сервере.
-# Dev-режим с watch и HMR живёт в docker-compose.yml (npm run up:dev).
+# Dev-режим с watch и HMR живёт в docker-compose.yml (docker compose up -d --build).
 # Этот файл подключается только явным -f docker-compose.prod.yml — файл по
 # умолчанию теперь dev, поэтому без -f деплой поднял бы dev-стек.
 # Секреты и ключи берутся из .env рядом с этим файлом (см. .env.example).
