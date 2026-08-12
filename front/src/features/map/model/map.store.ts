@@ -13,7 +13,7 @@ export interface SelectedApartment {
 }
 
 interface MapSelectionState {
-  /** Выбранный на карте или через поиск адрес */
+  /** Выбранный на карте или через поиск адрес (только для зданий) */
   selectedAddress: SelectedAddress | null
   /** Подъезд, чьи квартиры открыты; null — показан список подъездов */
   selectedEntrance: string | null
@@ -23,6 +23,8 @@ interface MapSelectionState {
   lastCenter: [number, number] | null
   lastZoom: number | null
   selectAddress: (address: SelectedAddress) => void
+  /** Только переместить карту (для улиц/районов, без панели) */
+  setMapCenter: (center: [number, number], zoom: number) => void
   selectEntrance: (entrance: string) => void
   clearEntrance: () => void
   selectApartment: (apartment: SelectedApartment) => void
@@ -45,6 +47,8 @@ export const useMapStore = create<MapSelectionState>((set) => ({
       lastCenter: [selectedAddress.lon, selectedAddress.lat],
       lastZoom: 17,
     }),
+  // Только переместить карту — для улиц/районов, без панели
+  setMapCenter: (center, zoom) => set({ lastCenter: center, lastZoom: zoom }),
   selectEntrance: (selectedEntrance) => set({ selectedEntrance, selectedApartment: null }),
   clearEntrance: () => set({ selectedEntrance: null, selectedApartment: null }),
   // Отзыв может быть создан в подъезде, который ещё не выбран, — открываем его вместе с квартирой

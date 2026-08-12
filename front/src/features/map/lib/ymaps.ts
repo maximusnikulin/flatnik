@@ -95,7 +95,7 @@ export interface FoundAddress {
 
 /** Результат поиска: адрес, «ничего не найдено» или отказ геокодера */
 export type FindAddressResult =
-  | { status: "found"; address: FoundAddress }
+  | { status: "found"; address: FoundAddress; kind?: string }
   | { status: "not-found" }
   | { status: "error"; message: string };
 
@@ -145,10 +145,12 @@ export async function findAddress(
   const [lon, lat] = geoObject.Point.pos.split(" ").map(Number);
   const name = geoObject.name || "";
   const description = geoObject.description || "";
+  const kind = geoObject.metaDataProperty?.GeocoderMetaData?.kind;
 
   return {
     status: "found",
     address: { address: formatAddress({ name, description }), lat, lon },
+    kind,
   };
 }
 

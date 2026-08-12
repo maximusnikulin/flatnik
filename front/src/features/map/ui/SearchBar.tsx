@@ -8,6 +8,7 @@ export function SearchBar() {
   const ymaps = useYmaps()
   const selectedAddress = useMapStore((s) => s.selectedAddress)
   const selectAddress = useMapStore((s) => s.selectAddress)
+  const setMapCenter = useMapStore((s) => s.setMapCenter)
   const clearSelection = useMapStore((s) => s.clearSelection)
 
   const [text, setText] = useState('')
@@ -54,7 +55,12 @@ export function SearchBar() {
     try {
       const result = await findAddress(query)
       if (result.status === 'found') {
-        selectAddress(result.address)
+        // Здания → панель + карта, остальное → только карта
+        if (result.kind === 'house') {
+          selectAddress(result.address)
+        } else {
+          setMapCenter([result.address.lon, result.address.lat], 17)
+        }
       } else if (result.status === 'not-found') {
         setNote('Такой адрес не найден. Уточните улицу и номер дома.')
       } else {
@@ -67,7 +73,8 @@ export function SearchBar() {
   }
 
   const handlePick = (item: SuggestResponseItem) => {
-    void applyFound(item.uri ? { uri: item.uri } : { text: item.address?.formattedAddress ?? item.title.text })
+    // uri не поддерживается Geocoder REST API — используем текстовый адрес
+    void applyFound({ text: item.title.text })
   }
 
   const handleSubmit = (event: React.FormEvent) => {
