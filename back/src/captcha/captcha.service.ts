@@ -8,20 +8,11 @@ import {
 } from '@nestjs/common'
 import type { ConfigType } from '@nestjs/config'
 import { captchaConfig } from '../config/captcha.config'
+import { describeCause } from '../common/describe-cause'
 
 const VALIDATE_URL = 'https://smartcaptcha.yandexcloud.net/validate'
 
 const UNAVAILABLE_MESSAGE = 'Проверка капчи временно недоступна, попробуйте ещё раз'
-
-/** Достаёт из ошибки fetch вложенную причину — без неё в логе только «fetch failed» */
-function describeCause(error: unknown): string {
-  const cause = error instanceof Error ? error.cause : undefined
-  if (cause instanceof Error) {
-    const code = 'code' in cause && typeof cause.code === 'string' ? `${cause.code}: ` : ''
-    return `${code}${cause.message}`
-  }
-  return 'причина не указана'
-}
 
 @Injectable()
 export class CaptchaService {

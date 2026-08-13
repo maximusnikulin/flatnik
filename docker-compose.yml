@@ -72,6 +72,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:-flatnik-dev-secret}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-30d}
       SMARTCAPTCHA_SERVER_KEY: ${SMARTCAPTCHA_SERVER_KEY:-}
+      SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
+      SMSAERO_API_KEY: ${SMSAERO_API_KEY:-}
+      SMSAERO_SIGN: ${SMSAERO_SIGN:-}
     volumes: *node-volumes
     depends_on:
       db:

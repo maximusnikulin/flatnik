@@ -1,4 +1,5 @@
 import { DataSource } from 'typeorm'
+import { AuthCode } from '../auth/auth-code.entity'
 import { Apartment } from '../houses/apartment.entity'
 import { House } from '../houses/house.entity'
 import { Review } from '../reviews/review.entity'
@@ -22,7 +23,7 @@ export const dataSource = new DataSource({
   username: process.env.POSTGRES_USER ?? 'flatnik',
   password: process.env.POSTGRES_PASSWORD ?? 'flatnik',
   database: process.env.POSTGRES_DB ?? 'flatnik',
-  entities: [User, House, Apartment, Review],
+  entities: [User, House, Apartment, Review, AuthCode],
   migrations: [__dirname + '/migrations/*{.ts,.js}'],
   synchronize: false,
 })

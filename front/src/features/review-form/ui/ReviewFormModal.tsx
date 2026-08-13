@@ -3,6 +3,7 @@ import { ApiError } from '../../../shared/api/fetcher'
 import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
+import { EgrnInput } from '../../../shared/ui/EgrnInput'
 
 interface ReviewFormModalProps {
   address: string
@@ -132,12 +133,9 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
 
           <label className="field">
             <span className="field__label">Кадастровый номер из выписки ЕГРН</span>
-            <input
+            <EgrnInput
               value={form.egrn}
-              onChange={(event) => form.setField('egrn', event.target.value)}
-              placeholder="77:01:0001075:1234"
-              pattern="[0-9:]{5,40}"
-              title="Цифры и двоеточия, например 77:01:0001075:1234"
+              onChange={(egrn) => form.setField('egrn', egrn)}
               required
             />
           </label>

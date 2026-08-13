@@ -17,10 +17,10 @@ function normalizePhone(value: unknown): unknown {
  * `VerifyCodeDto extends RequestCodeDto` токен утёк бы и в verify-code.
  */
 class PhoneDto {
-  /** Телефон в российском формате */
+  /** Телефон в российском формате; номера других стран не обслуживаем */
   @ApiProperty({ example: '+79991234567' })
   @Transform(({ value }) => normalizePhone(value))
-  @Matches(/^\+7\d{10}$/, { message: 'Ожидается телефон в формате +7XXXXXXXXXX' })
+  @Matches(/^\+7\d{10}$/, { message: 'Принимаем только номера +7XXXXXXXXXX' })
   phone!: string
 }
 
@@ -35,7 +35,7 @@ export class RequestCodeDto extends PhoneDto {
 }
 
 export class VerifyCodeDto extends PhoneDto {
-  /** Шестизначный код из лога бэкенда */
+  /** Шестизначный код из SMS */
   @ApiProperty({ example: '123456' })
   @IsString()
   @Matches(/^\d{6}$/, { message: 'Код — шесть цифр' })

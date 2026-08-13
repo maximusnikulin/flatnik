@@ -82,7 +82,9 @@ jobs:
 
             env_value() { sed -n "s/^$1=//p" .env | tail -1; }
 
-            for name in JWT_SECRET POSTGRES_PASSWORD; do
+            # SMSAERO_*: без доступов к провайдеру бэкенд в production не стартует
+            # (config/sms.config.ts) — ловим это здесь, а не крэш-лупом контейнера.
+            for name in JWT_SECRET POSTGRES_PASSWORD SMSAERO_EMAIL SMSAERO_API_KEY; do
               if [ -z "$(env_value "$name")" ]; then
                 echo "$name не задан в $APP_DIR/.env — деплой остановлен"
                 exit 1
