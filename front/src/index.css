@@ -503,6 +503,32 @@ textarea {
   color: var(--color-pending);
 }
 
+.review-card__status.-rejected {
+  color: var(--color-pin);
+}
+
+/* Причина отклонения от модератора; видит только автор отзыва */
+.review-card__reason {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--color-pin);
+  border-radius: 0 8px 8px 0;
+  background: var(--color-surface);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.review-card__reason-label {
+  font-weight: 600;
+}
+
+/* Подпись вместо кнопки правки, пока отзыв у модератора */
+.review-card__note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .review-card__author {
   margin: 0;
   font-weight: 700;
@@ -546,6 +572,22 @@ textarea {
 .btn-primary:disabled {
   opacity: 0.6;
   cursor: default;
+}
+
+/* Действие внутри карточки: заметное, но не спорящее с «Добавить отзыв» */
+.btn-secondary {
+  align-self: flex-start;
+  padding: 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.btn-secondary:hover {
+  border-color: var(--color-primary);
 }
 
 .btn-link {

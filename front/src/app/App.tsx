@@ -32,6 +32,8 @@ export function App() {
 
   const isFormOpen = useReviewFormStore((s) => s.isOpen);
   const openForm = useReviewFormStore((s) => s.open);
+  const openEditForm = useReviewFormStore((s) => s.openEdit);
+  const editTarget = useReviewFormStore((s) => s.editTarget);
 
   // Намерение «открыть форму после входа»: null — без префилла
   const [pendingPrefill, setPendingPrefill] = useState<
@@ -83,6 +85,7 @@ export function App() {
           <MyReviewsPanel
             onClose={() => setMyReviewsOpen(false)}
             onGoToHouse={selectAddress}
+            onEdit={openEditForm}
             activeAddress={selectedAddress?.address ?? null}
           />
         )}
@@ -122,11 +125,9 @@ export function App() {
         )}
       </aside>
 
-      {isFormOpen && selectedAddress && (
+      {isFormOpen && (editTarget || selectedAddress) && (
         <ReviewFormModal
-          address={selectedAddress.address}
-          lat={selectedAddress.lat}
-          lon={selectedAddress.lon}
+          house={selectedAddress}
           onCreated={(apartment) => selectApartment(apartment)}
           onUnauthorized={openAuthModal}
         />

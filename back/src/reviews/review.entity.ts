@@ -49,6 +49,10 @@ export class Review {
   @Column({ type: 'enum', enum: ReviewStatus, default: ReviewStatus.Pending })
   status!: ReviewStatus
 
+  /** Причина последнего отклонения; правка отзыва отправляет его на проверку заново и обнуляет её */
+  @Column({ type: 'text', nullable: true })
+  rejectionReason!: string | null
+
   @CreateDateColumn()
   createdAt!: Date
 

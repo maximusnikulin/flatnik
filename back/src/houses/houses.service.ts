@@ -46,14 +46,24 @@ export class HousesService {
     const rows = await this.houses
       .createQueryBuilder('house')
       .innerJoin(Apartment, 'apartment', 'apartment.houseId = house.id')
-      .innerJoin(Review, 'review', 'review.apartmentId = apartment.id')
+      // Отклонённые отзывы не считаются: дом, где остались только они,
+      // не должен висеть пином с нулевыми счётчиками
+      .innerJoin(
+        Review,
+        'review',
+        'review.apartmentId = apartment.id AND review.status != :rejected',
+      )
       .select('house.id', 'id')
       .addSelect('house.address', 'address')
       .addSelect('house.lat', 'lat')
       .addSelect('house.lon', 'lon')
       .addSelect('COUNT(*) FILTER (WHERE review.status = :confirmed)', 'confirmedCount')
       .addSelect('COUNT(*) FILTER (WHERE review.status = :pending)', 'pendingCount')
-      .setParameters({ confirmed: ReviewStatus.Confirmed, pending: ReviewStatus.Pending })
+      .setParameters({
+        confirmed: ReviewStatus.Confirmed,
+        pending: ReviewStatus.Pending,
+        rejected: ReviewStatus.Rejected,
+      })
       .groupBy('house.id')
       .getRawMany<PinRow>()
 

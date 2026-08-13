@@ -1,8 +1,20 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common'
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiNotFoundResponse,
   ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
@@ -11,7 +23,7 @@ import type { Request } from 'express'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { CurrentUserId } from '../auth/current-user-id.decorator'
 import { ReviewsService } from './reviews.service'
-import { CreateReviewDto, MyReviewDto, ReviewCreatedDto } from './reviews.dto'
+import { CreateReviewDto, MyReviewDto, ReviewCreatedDto, UpdateReviewDto } from './reviews.dto'
 
 @ApiTags('reviews')
 @Controller('reviews')
@@ -41,5 +53,23 @@ export class ReviewsController {
     @Req() request: Request,
   ): Promise<ReviewCreatedDto> {
     return this.reviewsService.create(userId, dto, request.ip)
+  }
+
+  /** Изменить свой отзыв; правка возвращает его на проверку модератору */
+  @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: MyReviewDto })
+  @ApiUnauthorizedResponse({ description: 'Нет или истёк токен авторизации' })
+  @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
+  @ApiNotFoundResponse({ description: 'Своего отзыва с таким идентификатором нет' })
+  @ApiConflictResponse({ description: 'Отзыв на проверке у модератора' })
+  update(
+    @CurrentUserId() userId: string,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateReviewDto,
+    @Req() request: Request,
+  ): Promise<MyReviewDto> {
+    return this.reviewsService.update(userId, id, dto, request.ip)
   }
 }

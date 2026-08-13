@@ -2,24 +2,26 @@ import { useShallow } from 'zustand/react/shallow'
 import { ApiError } from '../../../shared/api/fetcher'
 import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
+import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { EgrnInput } from '../../../shared/ui/EgrnInput'
 
 interface ReviewFormModalProps {
-  address: string
-  lat: number
-  lon: number
+  /** Дом для нового отзыва; в режиме правки адрес берётся из самого отзыва */
+  house: { address: string; lat: number; lon: number } | null
   /** Отзыв создан — открыть панель квартиры */
   onCreated: (apartment: { id: string; number: string; entrance: string }) => void
   /** Токен истёк или отозван — нужно войти заново, черновик сохраняется */
   onUnauthorized: () => void
 }
 
-/** Модалка «Добавить отзыв» — по макету: адрес, квартира, период, ЕГРН, текст */
-export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }: ReviewFormModalProps) {
+/** Модалка отзыва: адрес, квартира, период, ЕГРН, текст. В режиме правки
+ *  меняются только текст и период — остальное определяет уже созданный отзыв */
+export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewFormModalProps) {
   const form = useReviewFormStore(
     useShallow((s) => ({
       isApartmentLocked: s.isApartmentLocked,
+      editTarget: s.editTarget,
       apartmentNumber: s.apartmentNumber,
       entrance: s.entrance,
       periodFrom: s.periodFrom,
@@ -31,8 +33,20 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
       reset: s.reset,
     })),
   )
-  const mutation = useCreateReviewMutation()
+  const createMutation = useCreateReviewMutation()
+  const updateMutation = useUpdateReviewMutation()
   const captcha = useCaptcha()
+
+  const { editTarget } = form
+  const isEditing = editTarget !== null
+  const mutation = isEditing ? updateMutation : createMutation
+  const address = editTarget?.address ?? house?.address ?? ''
+
+  const handleUnauthorized = (error: unknown) => {
+    if (error instanceof ApiError && error.status === 401) {
+      onUnauthorized()
+    }
+  }
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -42,11 +56,28 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
 
     const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text } =
       useReviewFormStore.getState()
-    mutation.mutate(
+
+    if (editTarget) {
+      updateMutation.mutate(
+        {
+          reviewId: editTarget.reviewId,
+          text,
+          periodFrom: periodFrom || undefined,
+          periodTo: periodTo || undefined,
+          captchaToken: captchaResult.token,
+        },
+        { onSuccess: () => form.reset(), onError: handleUnauthorized },
+      )
+      return
+    }
+
+    if (!house) return
+
+    createMutation.mutate(
       {
-        address,
-        lat,
-        lon,
+        address: house.address,
+        lat: house.lat,
+        lon: house.lon,
         apartmentNumber,
         entrance,
         egrn,
@@ -60,11 +91,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
           form.reset()
           onCreated({ id: created.apartmentId, number: apartmentNumber, entrance })
         },
-        onError: (error) => {
-          if (error instanceof ApiError && error.status === 401) {
-            onUnauthorized()
-          }
-        },
+        onError: handleUnauthorized,
       },
     )
   }
@@ -75,7 +102,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
     <div className="modal-overlay" onClick={form.close}>
       <div className="modal" onClick={(event) => event.stopPropagation()}>
         <header className="modal__header">
-          <h2>Добавить отзыв</h2>
+          <h2>{isEditing ? 'Изменить отзыв' : 'Добавить отзыв'}</h2>
           <button type="button" className="modal__close" onClick={form.close} aria-label="Закрыть">
             ✕
           </button>
@@ -131,14 +158,18 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
             </div>
           </div>
 
-          <label className="field">
-            <span className="field__label">Кадастровый номер из выписки ЕГРН</span>
-            <EgrnInput
-              value={form.egrn}
-              onChange={(egrn) => form.setField('egrn', egrn)}
-              required
-            />
-          </label>
+          {/* Кадастровый номер подтверждает право на первый отзыв о квартире
+              и при правке не меняется — поэтому в режиме правки поля нет */}
+          {!isEditing && (
+            <label className="field">
+              <span className="field__label">Кадастровый номер из выписки ЕГРН</span>
+              <EgrnInput
+                value={form.egrn}
+                onChange={(egrn) => form.setField('egrn', egrn)}
+                required
+              />
+            </label>
+          )}
 
           <label className="field">
             <span className="field__label">Ваш отзыв</span>
@@ -153,6 +184,11 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
             />
           </label>
 
+          {isEditing && (
+            <p className="panel-note">
+              После правки отзыв снова уйдёт на проверку и до её окончания будет скрыт.
+            </p>
+          )}
           {captcha.isDisabled && (
             <p className="panel-note -error">
               Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Отзыв

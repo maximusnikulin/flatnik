@@ -26,6 +26,7 @@ export type ReviewStatus = Schemas['ReviewStatus']
 export type Review = Schemas['ReviewDto']
 export type MyReview = Schemas['MyReviewDto']
 export type CreateReviewRequest = Schemas['CreateReviewDto']
+export type UpdateReviewRequest = Schemas['UpdateReviewDto']
 export type ReviewCreated = Schemas['ReviewCreatedDto']
 
 /** Пути API как они объявлены в схеме, для типобезопасных клиентов. */

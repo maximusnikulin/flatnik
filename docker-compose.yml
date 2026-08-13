@@ -75,6 +75,8 @@ services:
       SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
       SMSAERO_API_KEY: ${SMSAERO_API_KEY:-}
       SMSAERO_SIGN: ${SMSAERO_SIGN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_MODERATOR_CHAT_ID: ${TELEGRAM_MODERATOR_CHAT_ID:-}
     volumes: *node-volumes
     depends_on:
       db:

@@ -90,6 +90,33 @@ export class CreateReviewDto {
   captchaToken?: string
 }
 
+/** Правка своего отзыва: квартира и ЕГРН не меняются — это был бы другой отзыв */
+export class UpdateReviewDto {
+  /** Текст отзыва */
+  @Transform(trimmed)
+  @IsString()
+  @MinLength(10)
+  @MaxLength(10000)
+  text!: string
+
+  /** Начало периода съёма, ISO-дата */
+  @ApiProperty({ required: false, example: '2024-03-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  periodFrom?: string
+
+  /** Конец периода съёма, ISO-дата */
+  @ApiProperty({ required: false, example: '2025-04-12' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  periodTo?: string
+
+  /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+  @IsOptional()
+  @IsString()
+  captchaToken?: string
+}
+
 export class ReviewDto {
   /** Идентификатор отзыва */
   id!: string
@@ -133,6 +160,10 @@ export class MyReviewDto {
   /** Конец периода съёма */
   @ApiProperty({ type: String, nullable: true, example: '2025-04-12' })
   periodTo!: string | null
+
+  /** Причина отклонения от модератора; null — отзыв не отклоняли */
+  @ApiProperty({ type: String, nullable: true })
+  rejectionReason!: string | null
 
   /** Дата создания, ISO 8601 */
   createdAt!: string

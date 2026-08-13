@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Запросить код подтверждения — уходит SMS-кой на указанный номер */
+        /** Запросить код подтверждения — уходит в Telegram на указанный номер */
         post: operations["AuthController_requestCode"];
         delete?: never;
         options?: never;
@@ -47,7 +47,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Обменять код из SMS на JWT */
+        /** Обменять код из Telegram на JWT */
         post: operations["AuthController_verifyCode"];
         delete?: never;
         options?: never;
@@ -157,6 +157,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reviews/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Изменить свой отзыв; правка возвращает его на проверку модератору */
+        patch: operations["ReviewsController_update"];
+        trace?: never;
+    };
     "/api/apartments/{id}/reviews": {
         parameters: {
             query?: never;
@@ -221,7 +238,7 @@ export interface components {
              */
             phone: string;
             /**
-             * @description Шестизначный код из SMS
+             * @description Шестизначный код из Telegram
              * @example 123456
              */
             code: string;
@@ -297,7 +314,7 @@ export interface components {
             house: components["schemas"]["HouseWithApartmentsDto"] | null;
         };
         /** @enum {string} */
-        ReviewStatus: "pending" | "confirmed";
+        ReviewStatus: "pending" | "confirmed" | "rejected";
         MyReviewDto: {
             status: components["schemas"]["ReviewStatus"];
             /**
@@ -310,6 +327,8 @@ export interface components {
              * @example 2025-04-12
              */
             periodTo: string | null;
+            /** @description Причина отклонения от модератора; null — отзыв не отклоняли */
+            rejectionReason: string | null;
             /**
              * @description Номер квартиры
              * @example 120
@@ -381,6 +400,22 @@ export interface components {
             reviewId: string;
             houseId: string;
             apartmentId: string;
+        };
+        UpdateReviewDto: {
+            /**
+             * @description Начало периода съёма, ISO-дата
+             * @example 2024-03-12
+             */
+            periodFrom?: string;
+            /**
+             * @description Конец периода съёма, ISO-дата
+             * @example 2025-04-12
+             */
+            periodTo?: string;
+            /** @description Текст отзыва */
+            text: string;
+            /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+            captchaToken?: string;
         };
         ReviewDto: {
             status: components["schemas"]["ReviewStatus"];
@@ -465,7 +500,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description SMS с кодом не отправлена */
+            /** @description Код не отправлен */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -650,6 +685,59 @@ export interface operations {
             };
             /** @description Не пройдена проверка капчи */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ReviewsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateReviewDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyReviewDto"];
+                };
+            };
+            /** @description Нет или истёк токен авторизации */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Не пройдена проверка капчи */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Своего отзыва с таким идентификатором нет */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Отзыв на проверке у модератора */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

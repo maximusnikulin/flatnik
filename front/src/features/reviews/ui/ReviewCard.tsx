@@ -26,12 +26,33 @@ interface ReviewCardProps {
   review: ReviewCardData
   /** Шапка: ник автора в отзывах квартиры, адрес — в «Моих отзывах» */
   header: ReactNode
+  /** Низ карточки: действия над своим отзывом */
+  footer?: ReactNode
+  /** Причина отклонения; её видит только автор, поэтому передаётся отдельно от отзыва */
+  rejectionReason?: string | null
   /** Выделить карточку: её дом сейчас отмечен на карте */
   isActive?: boolean
 }
 
+/** Статус отзыва строкой: плашка над шапкой карточки */
+function StatusLine({ status }: { status: ReviewCardData['status'] }) {
+  if (status === 'confirmed') {
+    return <p className="review-card__status -confirmed">✓ Отзыв подтверждён</p>
+  }
+  if (status === 'rejected') {
+    return <p className="review-card__status -rejected">✕ Отзыв отклонён</p>
+  }
+  return <p className="review-card__status -pending">⚠ Отзыв не подтверждён</p>
+}
+
 /** Карточка отзыва: статус, шапка, текст со сворачиванием, период съёма */
-export function ReviewCard({ review, header, isActive = false }: ReviewCardProps) {
+export function ReviewCard({
+  review,
+  header,
+  footer,
+  rejectionReason,
+  isActive = false,
+}: ReviewCardProps) {
   const [expanded, setExpanded] = useState(false)
   const isLong = review.text.length > COLLAPSE_THRESHOLD
   const text = !isLong || expanded ? review.text : `${review.text.slice(0, COLLAPSE_THRESHOLD)}…`
@@ -39,10 +60,11 @@ export function ReviewCard({ review, header, isActive = false }: ReviewCardProps
 
   return (
     <article className={isActive ? 'review-card -active' : 'review-card'}>
-      {review.status === 'confirmed' ? (
-        <p className="review-card__status -confirmed">✓ Отзыв подтверждён</p>
-      ) : (
-        <p className="review-card__status -pending">⚠ Отзыв не подтверждён</p>
+      <StatusLine status={review.status} />
+      {rejectionReason && (
+        <p className="review-card__reason">
+          <span className="review-card__reason-label">Причина:</span> {rejectionReason}
+        </p>
       )}
       {header}
       <p className="review-card__text">
@@ -54,6 +76,7 @@ export function ReviewCard({ review, header, isActive = false }: ReviewCardProps
         )}
       </p>
       {period && <p className="review-card__period">{period}</p>}
+      {footer}
     </article>
   )
 }

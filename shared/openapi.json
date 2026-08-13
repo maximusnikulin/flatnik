@@ -48,10 +48,10 @@
             "description": "Код на этот номер запрошен меньше минуты назад"
           },
           "503": {
-            "description": "SMS с кодом не отправлена"
+            "description": "Код не отправлен"
           }
         },
-        "summary": "Запросить код подтверждения — уходит SMS-кой на указанный номер",
+        "summary": "Запросить код подтверждения — уходит в Telegram на указанный номер",
         "tags": [
           "auth"
         ]
@@ -86,7 +86,7 @@
             "description": "Неверный, истёкший код или исчерпаны попытки"
           }
         },
-        "summary": "Обменять код из SMS на JWT",
+        "summary": "Обменять код из Telegram на JWT",
         "tags": [
           "auth"
         ]
@@ -293,6 +293,64 @@
         ]
       }
     },
+    "/api/reviews/{id}": {
+      "patch": {
+        "operationId": "ReviewsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyReviewDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Нет или истёк токен авторизации"
+          },
+          "403": {
+            "description": "Не пройдена проверка капчи"
+          },
+          "404": {
+            "description": "Своего отзыва с таким идентификатором нет"
+          },
+          "409": {
+            "description": "Отзыв на проверке у модератора"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Изменить свой отзыв; правка возвращает его на проверку модератору",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/apartments/{id}/reviews": {
       "get": {
         "operationId": "ApartmentReviewsController_list",
@@ -410,7 +468,7 @@
           },
           "code": {
             "type": "string",
-            "description": "Шестизначный код из SMS",
+            "description": "Шестизначный код из Telegram",
             "pattern": "/^\\d{6}$/",
             "example": "123456"
           }
@@ -605,7 +663,8 @@
         "type": "string",
         "enum": [
           "pending",
-          "confirmed"
+          "confirmed",
+          "rejected"
         ]
       },
       "MyReviewDto": {
@@ -629,6 +688,11 @@
             "nullable": true,
             "description": "Конец периода съёма",
             "example": "2025-04-12"
+          },
+          "rejectionReason": {
+            "type": "string",
+            "nullable": true,
+            "description": "Причина отклонения от модератора; null — отзыв не отклоняли"
           },
           "apartmentNumber": {
             "type": "string",
@@ -677,6 +741,7 @@
           "status",
           "periodFrom",
           "periodTo",
+          "rejectionReason",
           "apartmentNumber",
           "entrance",
           "id",
@@ -788,6 +853,36 @@
           "reviewId",
           "houseId",
           "apartmentId"
+        ]
+      },
+      "UpdateReviewDto": {
+        "type": "object",
+        "properties": {
+          "periodFrom": {
+            "type": "string",
+            "description": "Начало периода съёма, ISO-дата",
+            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
+            "example": "2024-03-12"
+          },
+          "periodTo": {
+            "type": "string",
+            "description": "Конец периода съёма, ISO-дата",
+            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
+            "example": "2025-04-12"
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст отзыва",
+            "minLength": 10,
+            "maxLength": 10000
+          },
+          "captchaToken": {
+            "type": "string",
+            "description": "Токен SmartCaptcha; обязателен, когда проверка капчи включена"
+          }
+        },
+        "required": [
+          "text"
         ]
       },
       "ReviewDto": {

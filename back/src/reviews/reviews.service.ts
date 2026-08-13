@@ -1,8 +1,14 @@
-import { BadRequestException, Injectable } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, Not, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
 import { HousesService } from '../houses/houses.service'
+import { ModerationService } from './moderation.service'
 import { Review } from './review.entity'
 import { ReviewStatus } from './review-status'
 import type {
@@ -10,6 +16,7 @@ import type {
   MyReviewDto,
   ReviewCreatedDto,
   ReviewDto,
+  UpdateReviewDto,
 } from './reviews.dto'
 
 @Injectable()
@@ -20,6 +27,7 @@ export class ReviewsService {
     private readonly dataSource: DataSource,
     private readonly captchaService: CaptchaService,
     private readonly housesService: HousesService,
+    private readonly moderationService: ModerationService,
   ) {}
 
   /** Создаёт отзыв, заводя дом и квартиру при необходимости */
@@ -31,7 +39,7 @@ export class ReviewsService {
     // Сетевой вызов — до транзакции, чтобы не держать соединение с БД
     await this.captchaService.validate(dto.captchaToken, ip)
 
-    return this.dataSource.transaction(async (em) => {
+    const created = await this.dataSource.transaction(async (em) => {
       const house = await this.housesService.getOrCreateHouse(em, {
         address: dto.address,
         lat: dto.lat,
@@ -52,6 +60,7 @@ export class ReviewsService {
           periodFrom: dto.periodFrom ?? null,
           periodTo: dto.periodTo ?? null,
           status: ReviewStatus.Pending,
+          rejectionReason: null,
         }),
       )
 
@@ -62,12 +71,58 @@ export class ReviewsService {
         status: review.status,
       }
     })
+
+    // После коммита: модератор не должен получить карточку раньше, чем отзыв
+    // станет виден, а сетевой вызов — держать соединение с БД
+    await this.moderationService.notify(created.reviewId)
+
+    return created
   }
 
-  /** Отзывы квартиры, новые сверху */
+  /**
+   * Правит свой отзыв и отправляет его на повторную проверку. Квартира и ЕГРН
+   * не меняются: другая квартира — это другой отзыв.
+   */
+  async update(
+    userId: string,
+    reviewId: string,
+    dto: UpdateReviewDto,
+    ip?: string,
+  ): Promise<MyReviewDto> {
+    if (dto.periodFrom && dto.periodTo && dto.periodFrom > dto.periodTo) {
+      throw new BadRequestException('Начало периода съёма позже его конца')
+    }
+
+    const review = await this.reviews.findOne({
+      where: { id: reviewId, authorId: userId },
+      relations: { apartment: { house: true } },
+    })
+    // Чужой отзыв не подтверждаем даже статусом ответа
+    if (!review) {
+      throw new NotFoundException('Отзыв не найден')
+    }
+    if (review.status === ReviewStatus.Pending) {
+      throw new ConflictException('Отзыв на проверке — дождитесь решения модератора')
+    }
+
+    await this.captchaService.validate(dto.captchaToken, ip)
+
+    review.text = dto.text
+    review.periodFrom = dto.periodFrom ?? null
+    review.periodTo = dto.periodTo ?? null
+    review.status = ReviewStatus.Pending
+    review.rejectionReason = null
+    await this.reviews.save(review)
+
+    await this.moderationService.notify(review.id, true)
+
+    return this.toMyReview(review)
+  }
+
+  /** Отзывы квартиры, новые сверху; отклонённые видны только автору */
   async listByApartment(apartmentId: string): Promise<ReviewDto[]> {
     const reviews = await this.reviews.find({
-      where: { apartmentId },
+      where: { apartmentId, status: Not(ReviewStatus.Rejected) },
       relations: { author: true },
       order: { createdAt: 'DESC' },
     })
@@ -91,12 +146,18 @@ export class ReviewsService {
       order: { updatedAt: 'DESC' },
     })
 
-    return reviews.map((review) => ({
+    return reviews.map((review) => this.toMyReview(review))
+  }
+
+  /** Отзыв должен быть загружен с relations `apartment.house` */
+  private toMyReview(review: Review): MyReviewDto {
+    return {
       id: review.id,
       status: review.status,
       text: review.text,
       periodFrom: review.periodFrom,
       periodTo: review.periodTo,
+      rejectionReason: review.rejectionReason,
       createdAt: review.createdAt.toISOString(),
       updatedAt: review.updatedAt.toISOString(),
       apartmentId: review.apartmentId,
@@ -105,6 +166,6 @@ export class ReviewsService {
       address: review.apartment.house.address,
       lat: review.apartment.house.lat,
       lon: review.apartment.house.lon,
-    }))
+    }
   }
 }

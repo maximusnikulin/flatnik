@@ -8,12 +8,19 @@ interface MyReviewsPanelProps {
   onClose: () => void
   /** Клик по адресу — перелететь к дому, панель при этом остаётся открытой */
   onGoToHouse: (house: { address: string; lat: number; lon: number }) => void
+  /** Правка своего отзыва — открыть форму с его текущим содержимым */
+  onEdit: (review: MyReview) => void
   /** Адрес, чей дом сейчас отмечен на карте; null — маркера нет */
   activeAddress: string | null
 }
 
 /** Панель «Мои отзывы»: свои отзывы всех квартир, недавно изменённые сверху */
-export function MyReviewsPanel({ onClose, onGoToHouse, activeAddress }: MyReviewsPanelProps) {
+export function MyReviewsPanel({
+  onClose,
+  onGoToHouse,
+  onEdit,
+  activeAddress,
+}: MyReviewsPanelProps) {
   const { data, isPending, error } = useQuery(myReviewsQuery(true))
 
   return (
@@ -44,7 +51,17 @@ export function MyReviewsPanel({ onClose, onGoToHouse, activeAddress }: MyReview
                 key={review.id}
                 review={review}
                 isActive={review.address === activeAddress}
+                rejectionReason={review.rejectionReason}
                 header={<MyReviewHeader review={review} onGoToHouse={onGoToHouse} />}
+                footer={
+                  review.status === 'pending' ? (
+                    <p className="review-card__note">На проверке — правка недоступна</p>
+                  ) : (
+                    <button type="button" className="btn-secondary" onClick={() => onEdit(review)}>
+                      Изменить отзыв
+                    </button>
+                  )
+                }
               />
             ))}
           </div>
