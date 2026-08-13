@@ -25,7 +25,10 @@ class PhoneDto {
 }
 
 export class RequestCodeDto extends PhoneDto {
-  /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+  /**
+   * Токен SmartCaptcha. Опционален в схеме, потому что в разработке ключей может
+   * не быть; когда серверный ключ задан, отсутствие токена даёт 400 в CaptchaService.
+   */
   @IsOptional()
   @IsString()
   captchaToken?: string

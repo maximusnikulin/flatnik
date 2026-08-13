@@ -50,6 +50,11 @@ export function AuthModal() {
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
   // заблокированной, иначе второй клик откроет второе задание
   const isRequesting = captcha.isRunning || requestCode.isPending
+  const requestLabel = captcha.isRunning
+    ? 'Подтвердите, что вы не робот'
+    : requestCode.isPending
+      ? 'Отправляем…'
+      : 'Получить код'
 
   // Капча до запроса кода: она защищает от спама SMS, поэтому задание должно
   // быть пройдено раньше, чем бэкенд возьмётся генерировать код
@@ -153,10 +158,17 @@ export function AuthModal() {
                 required
               />
             </label>
+            {captcha.isDisabled && (
+              <p className="panel-note -error">
+                Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Код
+                отправляется без проверки.
+              </p>
+            )}
+            <div className="captcha-slot" ref={captcha.containerRef} />
             {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
             <button type="submit" className="btn-primary" disabled={isRequesting}>
-              {isRequesting ? 'Отправляем…' : 'Получить код'}
+              {requestLabel}
             </button>
           </form>
         ) : (

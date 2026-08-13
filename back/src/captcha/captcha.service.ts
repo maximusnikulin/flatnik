@@ -1,8 +1,27 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, Logger } from '@nestjs/common'
+import {
+  BadRequestException,
+  ForbiddenException,
+  Inject,
+  Injectable,
+  Logger,
+  ServiceUnavailableException,
+} from '@nestjs/common'
 import type { ConfigType } from '@nestjs/config'
 import { captchaConfig } from '../config/captcha.config'
 
 const VALIDATE_URL = 'https://smartcaptcha.yandexcloud.net/validate'
+
+const UNAVAILABLE_MESSAGE = 'Проверка капчи временно недоступна, попробуйте ещё раз'
+
+/** Достаёт из ошибки fetch вложенную причину — без неё в логе только «fetch failed» */
+function describeCause(error: unknown): string {
+  const cause = error instanceof Error ? error.cause : undefined
+  if (cause instanceof Error) {
+    const code = 'code' in cause && typeof cause.code === 'string' ? `${cause.code}: ` : ''
+    return `${code}${cause.message}`
+  }
+  return 'причина не указана'
+}
 
 @Injectable()
 export class CaptchaService {
@@ -15,9 +34,12 @@ export class CaptchaService {
 
   /**
    * Проверяет токен Yandex SmartCaptcha.
-   * Без серверного ключа проверка выключена (режим разработки).
-   * При недоступности сервиса капчи запрос пропускается (fail-open) —
-   * так рекомендует Яндекс: сбой проверки не должен блокировать людей.
+   * Без серверного ключа проверка выключена — только в разработке: в production
+   * приложение с пустым ключом не стартует (см. captcha.config.ts).
+   *
+   * Fail-open отменён осознанно: пропуская запрос при сбое проверки, сервис ведёт
+   * себя ровно как сервис без капчи, и сломанные ключи или недоступность Яндекса
+   * не видны ни пользователю, ни разработчику. Сбой = 503 и предложение повторить.
    */
   async validate(token: string | undefined, ip?: string): Promise<void> {
     if (!this.config.serverKey) {
@@ -41,8 +63,9 @@ export class CaptchaService {
         signal: AbortSignal.timeout(5000),
       })
       if (!response.ok) {
-        this.logger.error(`Сервис капчи ответил ${response.status} — проверка пропущена`)
-        return
+        // Чаще всего это неверный серверный ключ — единственный след в логе
+        this.logger.error(`Сервис капчи ответил ${response.status}`)
+        throw new ServiceUnavailableException(UNAVAILABLE_MESSAGE)
       }
       const payload: unknown = await response.json()
       status =
@@ -53,8 +76,9 @@ export class CaptchaService {
           ? payload.status
           : 'unknown'
     } catch (error) {
-      this.logger.error(`Сервис капчи недоступен — проверка пропущена: ${String(error)}`)
-      return
+      if (error instanceof ServiceUnavailableException) throw error      
+      this.logger.error(`Сервис капчи недоступен: ${String(error)} (${describeCause(error)})`)
+      throw new ServiceUnavailableException(UNAVAILABLE_MESSAGE)
     }
 
     if (status !== 'ok') {

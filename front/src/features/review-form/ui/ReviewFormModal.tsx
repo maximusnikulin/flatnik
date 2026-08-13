@@ -155,13 +155,24 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
             />
           </label>
 
+          {captcha.isDisabled && (
+            <p className="panel-note -error">
+              Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Отзыв
+              отправляется без проверки.
+            </p>
+          )}
+          <div className="captcha-slot" ref={captcha.containerRef} />
           {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
           {mutation.error && !(mutation.error instanceof ApiError && mutation.error.status === 401) && (
             <p className="form-error">{mutation.error.message}</p>
           )}
 
           <button type="submit" className="btn-primary" disabled={isBusy}>
-            {isBusy ? 'Отправляем…' : 'Отправить на проверку'}
+            {captcha.isRunning
+              ? 'Подтвердите, что вы не робот'
+              : mutation.isPending
+                ? 'Отправляем…'
+                : 'Отправить на проверку'}
           </button>
         </form>
       </div>

@@ -11,6 +11,8 @@ build/
 .env.*
 !.env.example
 !.env.ci
+# Правки dev-стека под конкретную машину (docker compose читает файл сам)
+docker-compose.override.yml
 .claude/settings.local.json
 
 # Логи
