@@ -563,11 +563,7 @@
           },
           "confirmedCount": {
             "type": "number",
-            "description": "Подтверждённых отзывов по всем квартирам дома"
-          },
-          "pendingCount": {
-            "type": "number",
-            "description": "Неподтверждённых отзывов по всем квартирам дома"
+            "description": "Подтверждённых отзывов по всем квартирам дома; других публично не существует"
           }
         },
         "required": [
@@ -575,8 +571,7 @@
           "address",
           "lat",
           "lon",
-          "confirmedCount",
-          "pendingCount"
+          "confirmedCount"
         ]
       },
       "ApartmentSummaryDto": {
@@ -597,25 +592,20 @@
           "confirmedCount": {
             "type": "number",
             "description": "Подтверждённых отзывов"
-          },
-          "pendingCount": {
-            "type": "number",
-            "description": "Неподтверждённых отзывов"
           }
         },
         "required": [
           "id",
           "number",
           "entrance",
-          "confirmedCount",
-          "pendingCount"
+          "confirmedCount"
         ]
       },
       "HouseWithApartmentsDto": {
         "type": "object",
         "properties": {
           "apartments": {
-            "description": "Квартиры дома, по которым есть отзывы",
+            "description": "Квартиры дома, по которым есть подтверждённые отзывы",
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/ApartmentSummaryDto"

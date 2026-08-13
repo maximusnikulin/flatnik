@@ -5,7 +5,7 @@ interface EntranceRowProps {
   onClick: () => void
 }
 
-/** Строка списка подъездов: номер, число квартир и счётчики отзывов */
+/** Строка списка подъездов: номер, число квартир и подтверждённые отзывы */
 export function EntranceRow({ group, onClick }: EntranceRowProps) {
   const apartmentCount = group.apartments.length
 
@@ -19,7 +19,6 @@ export function EntranceRow({ group, onClick }: EntranceRowProps) {
       </span>
       <span className="apartment-row__badges">
         {group.confirmedCount > 0 && <span className="badge -confirmed">{group.confirmedCount}</span>}
-        {group.pendingCount > 0 && <span className="badge -pending">{group.pendingCount}</span>}
         <span className="apartment-row__chevron" aria-hidden>
           ›
         </span>

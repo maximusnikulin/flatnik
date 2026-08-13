@@ -21,7 +21,6 @@ interface PinRow {
   lat: number
   lon: number
   confirmedCount: string
-  pendingCount: string
 }
 
 interface ApartmentRow {
@@ -29,7 +28,6 @@ interface ApartmentRow {
   number: string
   entrance: string
   confirmedCount: string
-  pendingCount: string
 }
 
 @Injectable()
@@ -41,29 +39,26 @@ export class HousesService {
     private readonly apartments: Repository<Apartment>,
   ) {}
 
-  /** Дома, у которых есть хотя бы один отзыв, — пины на карте */
+  /**
+   * Дома, у которых есть хотя бы один подтверждённый отзыв, — пины на карте.
+   * Непроверенные и отклонённые публично не существуют, поэтому дом с одними
+   * такими отзывами пином не становится.
+   */
   async findPins(): Promise<HousePinDto[]> {
     const rows = await this.houses
       .createQueryBuilder('house')
       .innerJoin(Apartment, 'apartment', 'apartment.houseId = house.id')
-      // Отклонённые отзывы не считаются: дом, где остались только они,
-      // не должен висеть пином с нулевыми счётчиками
       .innerJoin(
         Review,
         'review',
-        'review.apartmentId = apartment.id AND review.status != :rejected',
+        'review.apartmentId = apartment.id AND review.status = :confirmed',
       )
       .select('house.id', 'id')
       .addSelect('house.address', 'address')
       .addSelect('house.lat', 'lat')
       .addSelect('house.lon', 'lon')
-      .addSelect('COUNT(*) FILTER (WHERE review.status = :confirmed)', 'confirmedCount')
-      .addSelect('COUNT(*) FILTER (WHERE review.status = :pending)', 'pendingCount')
-      .setParameters({
-        confirmed: ReviewStatus.Confirmed,
-        pending: ReviewStatus.Pending,
-        rejected: ReviewStatus.Rejected,
-      })
+      .addSelect('COUNT(*)', 'confirmedCount')
+      .setParameters({ confirmed: ReviewStatus.Confirmed })
       .groupBy('house.id')
       .getRawMany<PinRow>()
 
@@ -73,11 +68,14 @@ export class HousesService {
       lat: row.lat,
       lon: row.lon,
       confirmedCount: Number(row.confirmedCount),
-      pendingCount: Number(row.pendingCount),
     }))
   }
 
-  /** Дом с квартирами и счётчиками отзывов по каноническому адресу */
+  /**
+   * Дом с квартирами и счётчиками подтверждённых отзывов по каноническому адресу.
+   * Квартиры без подтверждённых отзывов не отдаются вовсе (innerJoin): такая
+   * строка в списке вела бы в заведомо пустую панель отзывов.
+   */
   async findByAddress(address: string): Promise<HouseLookupResponseDto> {
     const house = await this.houses.findOneBy({ addressKey: normalizeAddressKey(address) })
     if (!house) {
@@ -86,13 +84,16 @@ export class HousesService {
 
     const rows = await this.apartments
       .createQueryBuilder('apartment')
-      .leftJoin(Review, 'review', 'review.apartmentId = apartment.id')
+      .innerJoin(
+        Review,
+        'review',
+        'review.apartmentId = apartment.id AND review.status = :confirmed',
+      )
       .select('apartment.id', 'id')
       .addSelect('apartment.number', 'number')
       .addSelect('apartment.entrance', 'entrance')
-      .addSelect('COUNT(review.id) FILTER (WHERE review.status = :confirmed)', 'confirmedCount')
-      .addSelect('COUNT(review.id) FILTER (WHERE review.status = :pending)', 'pendingCount')
-      .setParameters({ confirmed: ReviewStatus.Confirmed, pending: ReviewStatus.Pending })
+      .addSelect('COUNT(*)', 'confirmedCount')
+      .setParameters({ confirmed: ReviewStatus.Confirmed })
       .where('apartment.houseId = :houseId', { houseId: house.id })
       .groupBy('apartment.id')
       // Числовые номера сортируются по-человечески: 2 раньше 10
@@ -105,7 +106,6 @@ export class HousesService {
       number: row.number,
       entrance: row.entrance,
       confirmedCount: Number(row.confirmedCount),
-      pendingCount: Number(row.pendingCount),
     }))
 
     return {

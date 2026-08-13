@@ -1,11 +1,10 @@
 import type { ApartmentSummary } from '@flatnik/shared'
 
-/** Подъезд дома с квартирами и суммой отзывов по ним */
+/** Подъезд дома с квартирами и суммой подтверждённых отзывов по ним */
 export interface EntranceGroup {
   entrance: string
   apartments: ApartmentSummary[]
   confirmedCount: number
-  pendingCount: number
 }
 
 /**
@@ -35,13 +34,11 @@ export function groupByEntrance(apartments: ApartmentSummary[]): EntranceGroup[]
     if (group) {
       group.apartments.push(apartment)
       group.confirmedCount += apartment.confirmedCount
-      group.pendingCount += apartment.pendingCount
     } else {
       groups.set(apartment.entrance, {
         entrance: apartment.entrance,
         apartments: [apartment],
         confirmedCount: apartment.confirmedCount,
-        pendingCount: apartment.pendingCount,
       })
     }
   }

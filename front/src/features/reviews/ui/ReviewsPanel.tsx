@@ -6,15 +6,18 @@ interface ReviewsPanelProps {
   apartmentId: string
   apartmentNumber: string
   entrance: string
+  /** Отзыв об этой квартире только что отправлен — объясняем, почему его не видно */
+  justSubmitted: boolean
   onBack: () => void
   onAddReview: () => void
 }
 
-/** Панель отзывов одной квартиры */
+/** Панель отзывов одной квартиры; публично видны только подтверждённые */
 export function ReviewsPanel({
   apartmentId,
   apartmentNumber,
   entrance,
+  justSubmitted,
   onBack,
   onAddReview,
 }: ReviewsPanelProps) {
@@ -31,7 +34,14 @@ export function ReviewsPanel({
       {error && <p className="panel-note -error">Не удалось загрузить отзывы: {error.message}</p>}
       {data &&
         (data.length === 0 ? (
-          <p className="panel-note">Отзывов пока нет.</p>
+          justSubmitted ? (
+            <p className="panel-note">
+              Отзыв отправлен на проверку — он появится здесь после модерации. Следить за
+              статусом можно в «Моих отзывах».
+            </p>
+          ) : (
+            <p className="panel-note">Отзывов пока нет.</p>
+          )
         ) : (
           <div className="panel-list">
             {data.map((review) => (

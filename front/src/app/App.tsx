@@ -43,6 +43,12 @@ export function App() {
   // «Мои отзывы» живут в правой колонке независимо от панелей дома и квартиры
   const [isMyReviewsOpen, setMyReviewsOpen] = useState(false);
 
+  // Квартира, отзыв о которой только что отправлен: публично он появится лишь
+  // после модерации, и без объяснения панель выглядит так, будто отзыв пропал
+  const [submittedApartmentId, setSubmittedApartmentId] = useState<string | null>(
+    null,
+  );
+
   // После выхода панель осталась бы висеть с ошибкой 401
   useEffect(() => {
     if (!token) setMyReviewsOpen(false);
@@ -114,6 +120,7 @@ export function App() {
             apartmentId={selectedApartment.id}
             apartmentNumber={selectedApartment.number}
             entrance={selectedApartment.entrance}
+            justSubmitted={selectedApartment.id === submittedApartmentId}
             onBack={clearApartment}
             onAddReview={() =>
               handleAddReview({
@@ -128,7 +135,10 @@ export function App() {
       {isFormOpen && (editTarget || selectedAddress) && (
         <ReviewFormModal
           house={selectedAddress}
-          onCreated={(apartment) => selectApartment(apartment)}
+          onCreated={(apartment) => {
+            setSubmittedApartmentId(apartment.id);
+            selectApartment(apartment);
+          }}
           onUnauthorized={openAuthModal}
         />
       )}

@@ -443,10 +443,6 @@ textarea {
   color: var(--color-confirmed);
 }
 
-.badge.-pending {
-  color: var(--color-pending);
-}
-
 /* Карточка отзыва */
 .review-card {
   display: flex;

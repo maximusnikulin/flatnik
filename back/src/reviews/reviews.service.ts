@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Not, Repository } from 'typeorm'
+import { DataSource, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
 import { HousesService } from '../houses/houses.service'
 import { ModerationService } from './moderation.service'
@@ -119,10 +119,13 @@ export class ReviewsService {
     return this.toMyReview(review)
   }
 
-  /** Отзывы квартиры, новые сверху; отклонённые видны только автору */
+  /**
+   * Отзывы квартиры, новые сверху. Публично существуют только подтверждённые:
+   * непроверенные и отклонённые видит один автор — в «Моих отзывах».
+   */
   async listByApartment(apartmentId: string): Promise<ReviewDto[]> {
     const reviews = await this.reviews.find({
-      where: { apartmentId, status: Not(ReviewStatus.Rejected) },
+      where: { apartmentId, status: ReviewStatus.Confirmed },
       relations: { author: true },
       order: { createdAt: 'DESC' },
     })

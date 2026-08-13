@@ -20,11 +20,8 @@ export class HousePinDto {
 
   lon!: number
 
-  /** Подтверждённых отзывов по всем квартирам дома */
+  /** Подтверждённых отзывов по всем квартирам дома; других публично не существует */
   confirmedCount!: number
-
-  /** Неподтверждённых отзывов по всем квартирам дома */
-  pendingCount!: number
 }
 
 export class ApartmentSummaryDto {
@@ -39,9 +36,6 @@ export class ApartmentSummaryDto {
 
   /** Подтверждённых отзывов */
   confirmedCount!: number
-
-  /** Неподтверждённых отзывов */
-  pendingCount!: number
 }
 
 export class HouseWithApartmentsDto {
@@ -53,7 +47,7 @@ export class HouseWithApartmentsDto {
 
   lon!: number
 
-  /** Квартиры дома, по которым есть отзывы */
+  /** Квартиры дома, по которым есть подтверждённые отзывы */
   @ApiProperty({ type: ApartmentSummaryDto, isArray: true })
   apartments!: ApartmentSummaryDto[]
 }

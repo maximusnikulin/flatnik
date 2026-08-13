@@ -284,10 +284,8 @@ export interface components {
             address: string;
             lat: number;
             lon: number;
-            /** @description Подтверждённых отзывов по всем квартирам дома */
+            /** @description Подтверждённых отзывов по всем квартирам дома; других публично не существует */
             confirmedCount: number;
-            /** @description Неподтверждённых отзывов по всем квартирам дома */
-            pendingCount: number;
         };
         ApartmentSummaryDto: {
             /** @description Идентификатор квартиры */
@@ -298,11 +296,9 @@ export interface components {
             entrance: string;
             /** @description Подтверждённых отзывов */
             confirmedCount: number;
-            /** @description Неподтверждённых отзывов */
-            pendingCount: number;
         };
         HouseWithApartmentsDto: {
-            /** @description Квартиры дома, по которым есть отзывы */
+            /** @description Квартиры дома, по которым есть подтверждённые отзывы */
             apartments: components["schemas"]["ApartmentSummaryDto"][];
             id: string;
             address: string;
