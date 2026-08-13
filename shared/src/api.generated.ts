@@ -72,6 +72,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/me/nickname": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Выбрать никнейм; он же подтверждает автоматически выданный при регистрации */
+        patch: operations["AuthController_setNickname"];
+        trace?: never;
+    };
     "/api/houses": {
         parameters: {
             query?: never;
@@ -196,18 +213,32 @@ export interface components {
              */
             phone: string;
             /**
-             * @description Имя из формы отзыва; null, пока не указано
-             * @example Максим
+             * @description Публичный ник; им подписаны отзывы
+             * @example maxim_n
              */
-            name: string | null;
+            nickname: string;
             /** @description Идентификатор пользователя */
             id: string;
+            /**
+             * @description false — ник сгенерирован автоматически и пользователь его ещё не выбирал.
+             *     Фронт по этому флагу показывает обязательный шаг ввода ника.
+             */
+            nicknameConfirmed: boolean;
         };
         AuthResponseDto: {
             /** @description Bearer-токен для заголовка Authorization */
             accessToken: string;
             /** @description Профиль вошедшего пользователя */
             user: components["schemas"]["UserDto"];
+        };
+        SetNicknameDto: {
+            /**
+             * @description Никнейм: буквы, цифры и подчёркивание, 3–20 символов. Пробелов нет
+             *     намеренно — ник подписывает отзывы и читается как идентификатор.
+             *     Занятость проверяется без учёта регистра.
+             * @example maxim_n
+             */
+            nickname: string;
         };
         HousePinDto: {
             /** @description Идентификатор дома */
@@ -279,8 +310,6 @@ export interface components {
             lon: number;
             /** @description Текст отзыва */
             text: string;
-            /** @description Имя автора; сохраняется в профиль и показывается у отзывов */
-            authorName?: string;
             /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
             captchaToken?: string;
         };
@@ -306,7 +335,7 @@ export interface components {
             periodTo: string | null;
             /** @description Идентификатор отзыва */
             id: string;
-            /** @description Имя автора или маскированный телефон */
+            /** @description Никнейм автора */
             authorName: string;
             /** @description Текст отзыва */
             text: string;
@@ -416,6 +445,36 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserDto"];
                 };
+            };
+        };
+    };
+    AuthController_setNickname: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SetNicknameDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+            /** @description Никнейм уже занят */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

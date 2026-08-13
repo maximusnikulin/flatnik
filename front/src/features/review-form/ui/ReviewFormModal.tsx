@@ -1,9 +1,5 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { useShallow } from 'zustand/react/shallow'
 import { ApiError } from '../../../shared/api/fetcher'
-import { useAuthStore } from '../../auth/model/auth.store'
-import { meQuery } from '../../auth/api/auth.api'
 import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
@@ -29,23 +25,13 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
       periodTo: s.periodTo,
       egrn: s.egrn,
       text: s.text,
-      authorName: s.authorName,
       setField: s.setField,
       close: s.close,
       reset: s.reset,
     })),
   )
-  const token = useAuthStore((s) => s.token)
-  const { data: me } = useQuery(meQuery(Boolean(token)))
   const mutation = useCreateReviewMutation()
   const captcha = useCaptcha()
-
-  // Предзаполняем «Ваше имя» из профиля один раз, не затирая ввод
-  useEffect(() => {
-    if (me?.name && !useReviewFormStore.getState().authorName) {
-      useReviewFormStore.getState().setField('authorName', me.name)
-    }
-  }, [me])
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -53,7 +39,7 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
     const captchaResult = await captcha.getToken()
     if (!captchaResult.ok) return
 
-    const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text, authorName } =
+    const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text } =
       useReviewFormStore.getState()
     mutation.mutate(
       {
@@ -66,7 +52,6 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
         text,
         periodFrom: periodFrom || undefined,
         periodTo: periodTo || undefined,
-        authorName: authorName || undefined,
         captchaToken: captchaResult.token,
       },
       {
@@ -167,16 +152,6 @@ export function ReviewFormModal({ address, lat, lon, onCreated, onUnauthorized }
               minLength={10}
               maxLength={10000}
               required
-            />
-          </label>
-
-          <label className="field">
-            <span className="field__label">Ваше имя (необязательно)</span>
-            <input
-              value={form.authorName}
-              onChange={(event) => form.setField('authorName', event.target.value)}
-              placeholder="Как подписать отзыв"
-              maxLength={100}
             />
           </label>
 

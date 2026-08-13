@@ -1,22 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { useAuthStore } from '../model/auth.store'
-import { useRequestCodeMutation, useVerifyCodeMutation } from '../api/auth.api'
+import {
+  meQuery,
+  useRequestCodeMutation,
+  useSetNicknameMutation,
+  useVerifyCodeMutation,
+} from '../api/auth.api'
 
-/** Двухшаговая модалка входа: телефон → код из лога бэкенда */
+/**
+ * Вход по телефону: телефон → код из лога → никнейм.
+ *
+ * Третий шаг обязателен и появляется не только сразу после регистрации:
+ * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
+ * человек не выберет своё имя. Поэтому при заходе на сайт с уже сохранённым
+ * токеном модалка открывается сама и закрыть её нельзя.
+ */
 export function AuthModal() {
-  const isOpen = useAuthStore((s) => s.isModalOpen)
+  const isModalOpen = useAuthStore((s) => s.isModalOpen)
   const closeModal = useAuthStore((s) => s.closeModal)
+  const token = useAuthStore((s) => s.token)
+
+  const me = useQuery(meQuery(Boolean(token)))
+  const mustChooseNickname = Boolean(token) && me.data !== undefined && !me.data.nicknameConfirmed
 
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
+  const [nickname, setNickname] = useState('')
   const [step, setStep] = useState<'phone' | 'code'>('phone')
 
   const requestCode = useRequestCodeMutation()
   const verifyCode = useVerifyCodeMutation()
+  const setNicknameMutation = useSetNicknameMutation()
   const captcha = useCaptcha()
 
-  if (!isOpen) return null
+  // Подставляем выданный автоматически ник — его видно и можно оставить как есть.
+  // Один раз на пользователя: иначе очищённое поле тут же заполнялось бы снова.
+  const prefilledFor = useRef<string | null>(null)
+  useEffect(() => {
+    if (mustChooseNickname && me.data && prefilledFor.current !== me.data.id) {
+      prefilledFor.current = me.data.id
+      setNickname(me.data.nickname)
+    }
+  }, [mustChooseNickname, me.data])
+
+  if (!isModalOpen && !mustChooseNickname) return null
 
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
   // заблокированной, иначе второй клик откроет второе задание
@@ -46,22 +75,68 @@ export function AuthModal() {
     verifyCode.mutate(
       { phone, code },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           setPhone('')
           setCode('')
           setStep('phone')
-          closeModal()
+          // Новому пользователю ник ещё выбирать: модалка останется открытой
+          // на третьем шаге, её удержит mustChooseNickname
+          if (data.user.nicknameConfirmed) closeModal()
         },
       },
     )
   }
 
+  const handleNickname = (event: React.FormEvent) => {
+    event.preventDefault()
+    setNicknameMutation.mutate({ nickname }, { onSuccess: () => closeModal() })
+  }
+
+  // Закрыть можно всё, кроме обязательного выбора ника
+  const dismiss = mustChooseNickname ? undefined : closeModal
+
+  if (mustChooseNickname) {
+    return (
+      <div className="modal-overlay">
+        <div className="modal -narrow">
+          <header className="modal__header">
+            <h2>Выберите никнейм</h2>
+          </header>
+          <form onSubmit={handleNickname} className="modal__body">
+            <p className="panel-note">
+              Им будут подписаны ваши отзывы. Телефон никому не показывается.
+              Сейчас у вас временный ник, выданный автоматически.
+            </p>
+            <label className="field">
+              <span className="field__label">Никнейм</span>
+              <input
+                value={nickname}
+                onChange={(event) => setNickname(event.target.value)}
+                placeholder="maxim_n"
+                minLength={3}
+                maxLength={20}
+                autoFocus
+                required
+              />
+            </label>
+            {setNicknameMutation.error && (
+              <p className="form-error">{setNicknameMutation.error.message}</p>
+            )}
+            <button type="submit" className="btn-primary" disabled={setNicknameMutation.isPending}>
+              {setNicknameMutation.isPending ? 'Сохраняем…' : 'Сохранить'}
+            </button>
+          </form>
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className="modal-overlay" onClick={closeModal}>
+    <div className="modal-overlay" onClick={dismiss}>
       <div className="modal -narrow" onClick={(event) => event.stopPropagation()}>
         <header className="modal__header">
           <h2>Вход по телефону</h2>
-          <button type="button" className="modal__close" onClick={closeModal} aria-label="Закрыть">
+          <button type="button" className="modal__close" onClick={dismiss} aria-label="Закрыть">
             ✕
           </button>
         </header>

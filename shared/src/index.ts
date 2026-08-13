@@ -13,6 +13,7 @@ export type RequestCodeRequest = Schemas['RequestCodeDto']
 export type VerifyCodeRequest = Schemas['VerifyCodeDto']
 export type AuthResponse = Schemas['AuthResponseDto']
 export type CurrentUser = Schemas['UserDto']
+export type SetNicknameRequest = Schemas['SetNicknameDto']
 
 // Дома и квартиры
 export type HousePin = Schemas['HousePinDto']

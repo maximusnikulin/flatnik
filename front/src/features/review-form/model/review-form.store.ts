@@ -8,7 +8,6 @@ export type ReviewFormField =
   | 'periodTo'
   | 'egrn'
   | 'text'
-  | 'authorName'
 
 export interface ReviewFormPrefill {
   apartmentNumber: string
@@ -25,7 +24,6 @@ interface ReviewFormState {
   periodTo: string
   egrn: string
   text: string
-  authorName: string
   open: (prefill?: ReviewFormPrefill) => void
   setField: (field: ReviewFormField, value: string) => void
   /** Закрыть, сохранив черновик (например, поверх открылась модалка входа) */
@@ -41,7 +39,6 @@ const emptyDraft = {
   periodTo: '',
   egrn: '',
   text: '',
-  authorName: '',
 }
 
 export const useReviewFormStore = create<ReviewFormState>((set) => ({

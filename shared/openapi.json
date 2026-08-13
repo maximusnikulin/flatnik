@@ -113,6 +113,46 @@
         ]
       }
     },
+    "/api/auth/me/nickname": {
+      "patch": {
+        "operationId": "AuthController_setNickname",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetNicknameDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Никнейм уже занят"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Выбрать никнейм; он же подтверждает автоматически выданный при регистрации",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/houses": {
       "get": {
         "operationId": "HousesController_list",
@@ -349,21 +389,25 @@
             "description": "Телефон, на который выдан токен",
             "example": "+79991234567"
           },
-          "name": {
+          "nickname": {
             "type": "string",
-            "nullable": true,
-            "description": "Имя из формы отзыва; null, пока не указано",
-            "example": "Максим"
+            "description": "Публичный ник; им подписаны отзывы",
+            "example": "maxim_n"
           },
           "id": {
             "type": "string",
             "description": "Идентификатор пользователя"
+          },
+          "nicknameConfirmed": {
+            "type": "boolean",
+            "description": "false — ник сгенерирован автоматически и пользователь его ещё не выбирал.\nФронт по этому флагу показывает обязательный шаг ввода ника."
           }
         },
         "required": [
           "phone",
-          "name",
-          "id"
+          "nickname",
+          "id",
+          "nicknameConfirmed"
         ]
       },
       "AuthResponseDto": {
@@ -385,6 +429,22 @@
         "required": [
           "accessToken",
           "user"
+        ]
+      },
+      "SetNicknameDto": {
+        "type": "object",
+        "properties": {
+          "nickname": {
+            "type": "string",
+            "description": "Никнейм: буквы, цифры и подчёркивание, 3–20 символов. Пробелов нет\nнамеренно — ник подписывает отзывы и читается как идентификатор.\nЗанятость проверяется без учёта регистра.",
+            "pattern": "/^[\\p{L}\\p{N}_]{3,20}$/u",
+            "example": "maxim_n",
+            "minLength": 3,
+            "maxLength": 20
+          }
+        },
+        "required": [
+          "nickname"
         ]
       },
       "HousePinDto": {
@@ -561,11 +621,6 @@
             "minLength": 10,
             "maxLength": 10000
           },
-          "authorName": {
-            "type": "string",
-            "description": "Имя автора; сохраняется в профиль и показывается у отзывов",
-            "maxLength": 100
-          },
           "captchaToken": {
             "type": "string",
             "description": "Токен SmartCaptcha; обязателен, когда проверка капчи включена"
@@ -643,7 +698,7 @@
           },
           "authorName": {
             "type": "string",
-            "description": "Имя автора или маскированный телефон"
+            "description": "Никнейм автора"
           },
           "text": {
             "type": "string",

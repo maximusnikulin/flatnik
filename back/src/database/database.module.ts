@@ -16,9 +16,16 @@ import { databaseConfig } from '../config/database.config'
         database: db.name,
         // Сущности регистрируют модули фич через forFeature
         autoLoadEntities: true,
-        // Этап скелета: схему БД ведёт synchronize. До появления реальных
-        // данных заменить на миграции — переименований он не переживает.
-        synchronize: true,
+        // Схему ведут миграции — и в dev, и в prod. synchronize выключен
+        // намеренно: он не переживает переименований и молча разъезжается
+        // с миграциями, после чего migration:generate выдаёт диффы против
+        // схемы, которую никто не ревьюил.
+        synchronize: false,
+        // Одна нода на окружение, поэтому применяем миграции на старте:
+        // отдельный шаг в деплое давал бы окно, когда новый код уже работает
+        // на старой схеме. Список — тот же, что у CLI (data-source.ts).
+        migrations: [__dirname + '/migrations/*{.ts,.js}'],
+        migrationsRun: true,
         // Выгрузка OpenAPI-схемы (npm run openapi) поднимает приложение без
         // listen(), БД ей не нужна: DataSource создаётся, но не подключается.
         manualInitialization: process.env.OPENAPI_GEN === '1',

@@ -78,13 +78,6 @@ export class CreateReviewDto {
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
   periodTo?: string
 
-  /** Имя автора; сохраняется в профиль и показывается у отзывов */
-  @IsOptional()
-  @Transform(trimmed)
-  @IsString()
-  @MaxLength(100)
-  authorName?: string
-
   /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
   @IsOptional()
   @IsString()
@@ -98,7 +91,7 @@ export class ReviewDto {
   @ApiProperty({ enum: ReviewStatus, enumName: 'ReviewStatus' })
   status!: ReviewStatus
 
-  /** Имя автора или маскированный телефон */
+  /** Никнейм автора */
   authorName!: string
 
   /** Текст отзыва */

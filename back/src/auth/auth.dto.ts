@@ -39,6 +39,23 @@ export class VerifyCodeDto extends PhoneDto {
   code!: string
 }
 
+export class SetNicknameDto {
+  /**
+   * Никнейм: буквы, цифры и подчёркивание, 3–20 символов. Пробелов нет
+   * намеренно — ник подписывает отзывы и читается как идентификатор.
+   * Занятость проверяется без учёта регистра.
+   */
+  // Регэксп инлайном, а не константой: CLI-плагин Swagger кладёт в схему
+  // исходный текст аргумента и с константой записал бы туда её имя.
+  @ApiProperty({ example: 'maxim_n', minLength: 3, maxLength: 20 })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @Matches(/^[\p{L}\p{N}_]{3,20}$/u, {
+    message: 'Ник — от 3 до 20 символов: буквы, цифры и подчёркивание',
+  })
+  nickname!: string
+}
+
 export class UserDto {
   /** Идентификатор пользователя */
   id!: string
@@ -47,9 +64,15 @@ export class UserDto {
   @ApiProperty({ example: '+79991234567' })
   phone!: string
 
-  /** Имя из формы отзыва; null, пока не указано */
-  @ApiProperty({ type: String, nullable: true, example: 'Максим' })
-  name!: string | null
+  /** Публичный ник; им подписаны отзывы */
+  @ApiProperty({ example: 'maxim_n' })
+  nickname!: string
+
+  /**
+   * false — ник сгенерирован автоматически и пользователь его ещё не выбирал.
+   * Фронт по этому флагу показывает обязательный шаг ввода ника.
+   */
+  nicknameConfirmed!: boolean
 }
 
 export class AuthResponseDto {

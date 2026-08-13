@@ -4,12 +4,14 @@ import {
   Get,
   HttpCode,
   NotFoundException,
+  Patch,
   Post,
   Req,
   UseGuards,
 } from '@nestjs/common'
 import {
   ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
@@ -21,7 +23,13 @@ import { AuthService } from './auth.service'
 import { UsersService } from '../users/users.service'
 import { JwtAuthGuard } from './jwt-auth.guard'
 import { CurrentUserId } from './current-user-id.decorator'
-import { AuthResponseDto, RequestCodeDto, UserDto, VerifyCodeDto } from './auth.dto'
+import {
+  AuthResponseDto,
+  RequestCodeDto,
+  SetNicknameDto,
+  UserDto,
+  VerifyCodeDto,
+} from './auth.dto'
 import type { User } from '../users/user.entity'
 
 @ApiTags('auth')
@@ -64,7 +72,26 @@ export class AuthController {
     return this.toUserDto(user)
   }
 
+  /** Выбрать никнейм; он же подтверждает автоматически выданный при регистрации */
+  @Patch('me/nickname')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: UserDto })
+  @ApiConflictResponse({ description: 'Никнейм уже занят' })
+  async setNickname(
+    @CurrentUserId() userId: string,
+    @Body() dto: SetNicknameDto,
+  ): Promise<UserDto> {
+    const user = await this.usersService.setNickname(userId, dto.nickname)
+    return this.toUserDto(user)
+  }
+
   private toUserDto(user: User): UserDto {
-    return { id: user.id, phone: user.phone, name: user.name }
+    return {
+      id: user.id,
+      phone: user.phone,
+      nickname: user.nickname,
+      nicknameConfirmed: user.nicknameConfirmed,
+    }
   }
 }

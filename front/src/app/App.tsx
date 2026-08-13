@@ -5,6 +5,7 @@ import { useMapStore } from "../features/map/model/map.store";
 import { HousePanel } from "../features/houses/ui/HousePanel";
 import { ReviewsPanel } from "../features/reviews/ui/ReviewsPanel";
 import { AuthModal } from "../features/auth/ui/AuthModal";
+import { UserMenu } from "../features/auth/ui/UserMenu";
 import { useAuthStore } from "../features/auth/model/auth.store";
 import { ReviewFormModal } from "../features/review-form/ui/ReviewFormModal";
 import { useReviewFormStore } from "../features/review-form/model/review-form.store";
@@ -65,6 +66,10 @@ export function App() {
       <div className="app__map">
         <MapView onSelectHouse={handleSelectHouse} />
       </div>
+
+      <header className="app__header">
+        <UserMenu />
+      </header>
 
       <aside className="side-panel">
         <SearchBar />

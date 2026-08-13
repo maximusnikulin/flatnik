@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   CurrentUser,
   RequestCodeRequest,
+  SetNicknameRequest,
   VerifyCodeRequest,
 } from '@flatnik/shared'
 import { api } from '../../../shared/api/fetcher'
@@ -37,7 +38,24 @@ export function useVerifyCodeMutation() {
     mutationFn: (body: VerifyCodeRequest) => api.post<AuthResponse>('/api/auth/verify-code', body),
     onSuccess: (data) => {
       setToken(data.accessToken)
+      // Профиль кладём в кеш сразу: по nicknameConfirmed решается, показывать
+      // ли шаг выбора ника, и ждать отдельного запроса ради этого незачем
+      queryClient.setQueryData(authKeys.me(), data.user)
       void queryClient.invalidateQueries({ queryKey: queryKeyRoots.auth })
+    },
+  })
+}
+
+/** Шаг 3: выбрать никнейм. 409 — ник занят */
+export function useSetNicknameMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: SetNicknameRequest) =>
+      api.patch<CurrentUser>('/api/auth/me/nickname', body),
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me(), user)
+      // Ник подписывает отзывы — их списки тоже устарели
+      void queryClient.invalidateQueries({ queryKey: queryKeyRoots.reviews })
     },
   })
 }
