@@ -42,18 +42,18 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
-  /** Запросить код подтверждения — уходит SMS-кой на указанный номер */
+  /** Запросить код подтверждения — уходит в Telegram на указанный номер */
   @Post('request-code')
   @HttpCode(204)
   @ApiNoContentResponse({ description: 'Код отправлен на указанный номер' })
   @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
   @ApiTooManyRequestsResponse({ description: 'Код на этот номер запрошен меньше минуты назад' })
-  @ApiServiceUnavailableResponse({ description: 'SMS с кодом не отправлена' })
+  @ApiServiceUnavailableResponse({ description: 'Код не отправлен' })
   requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<void> {
     return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
   }
 
-  /** Обменять код из SMS на JWT */
+  /** Обменять код из Telegram на JWT */
   @Post('verify-code')
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })

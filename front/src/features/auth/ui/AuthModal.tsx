@@ -12,7 +12,7 @@ import {
 } from '../api/auth.api'
 
 /**
- * Вход по телефону: телефон → код из SMS → никнейм.
+ * Вход по телефону: телефон → код из Telegram → никнейм.
  *
  * Третий шаг обязателен и появляется не только сразу после регистрации:
  * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
@@ -171,9 +171,11 @@ export function AuthModal() {
           </form>
         ) : (
           <form onSubmit={handleVerify} className="modal__body">
-            <p className="panel-note">Отправили SMS с кодом на {formatPhone(phone)}.</p>
+            <p className="panel-note">
+              Отправили код в Telegram на {formatPhone(phone)}.
+            </p>
             <label className="field">
-              <span className="field__label">Код из SMS</span>
+              <span className="field__label">Код из Telegram</span>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}

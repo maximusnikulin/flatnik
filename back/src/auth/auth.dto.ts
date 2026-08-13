@@ -35,7 +35,7 @@ export class RequestCodeDto extends PhoneDto {
 }
 
 export class VerifyCodeDto extends PhoneDto {
-  /** Шестизначный код из SMS */
+  /** Шестизначный код из Telegram */
   @ApiProperty({ example: '123456' })
   @IsString()
   @Matches(/^\d{6}$/, { message: 'Код — шесть цифр' })

@@ -4,15 +4,17 @@ import { smsConfig } from '../config/sms.config'
 import { describeCause } from '../common/describe-cause'
 
 /**
- * Единственный адрес отправки. Тестового режима в коде нет намеренно: sms/testsend
- * ничего не отправляет, и переключатель на него означал бы конфигурацию, при которой
- * production молча перестаёт слать SMS.
+ * Код уходит в Telegram по номеру телефона. Обычный sms/send здесь не годится:
+ * с бесплатным именем отправителя операторы отклоняют сообщения с кодами
+ * (status reject), да и стоит SMS в разы дороже. Тестового режима в коде нет
+ * намеренно — переключатель на него означал бы конфигурацию, при которой
+ * production молча перестаёт отправлять коды.
  */
-const SEND_URL = 'https://gate.smsaero.ru/v2/sms/send'
+const SEND_URL = 'https://gate.smsaero.ru/v2/telegram/send'
 
 const REQUEST_TIMEOUT_MS = 10_000
 
-const UNAVAILABLE_MESSAGE = 'Не удалось отправить SMS с кодом, попробуйте ещё раз'
+const UNAVAILABLE_MESSAGE = 'Не удалось отправить код, попробуйте ещё раз'
 
 /** Идентификатор сообщения из `data.id` — по нему статус виден в кабинете SMS Aero */
 function readMessageId(parsed: object): string {
@@ -53,17 +55,30 @@ export class SmsService {
     private readonly config: ConfigType<typeof smsConfig>,
   ) {}
 
-  /** Доступы заданы — SMS уходят по-настоящему; иначе вызывающий печатает код в лог */
+  /** Доступы заданы — коды уходят по-настоящему; иначе вызывающий печатает код в лог */
   get isEnabled(): boolean {
     return Boolean(this.config.apiKey && this.config.email)
   }
 
   /**
-   * Отправляет сообщение через SMS Aero. Любая неудача — 503 с человеческим текстом:
-   * он доезжает до формы, поэтому молчаливого fail-open здесь нет.
+   * Отправляет код в Telegram на номер телефона. Если задано своё имя отправителя,
+   * провайдер включает каскад: не доставили в Telegram — уйдёт SMS с текстом
+   * `smsText`. С бесплатным именем каскад выключен намеренно, такие SMS всё равно
+   * отклоняются операторами, а деньги за попытку списываются.
+   *
+   * Любая неудача — 503 с человеческим текстом: он доезжает до формы,
+   * поэтому молчаливого fail-open здесь нет.
    */
-  async send(phone: string, text: string): Promise<void> {
+  async sendCode(phone: string, code: string, smsText: string): Promise<void> {
     const credentials = Buffer.from(`${this.config.email}:${this.config.apiKey}`).toString('base64')
+
+    const payloadToSend = {
+      // Провайдер ждёт номер без плюса: 79991234567
+      number: phone.replace(/^\+/, ''),
+      // Код числом, как в схеме провайдера; ведущих нулей в нём нет по построению
+      code: Number(code),
+      ...(this.config.sign ? { text: smsText, sign: this.config.sign } : {}),
+    }
 
     let response: Response
     let body: string
@@ -75,8 +90,7 @@ export class SmsService {
           'Content-Type': 'application/json',
           Accept: 'application/json',
         },
-        // Провайдер ждёт номер без плюса: 79991234567
-        body: JSON.stringify({ number: phone.replace(/^\+/, ''), text, sign: this.config.sign }),
+        body: JSON.stringify(payloadToSend),
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
       body = await response.text()
@@ -95,8 +109,9 @@ export class SmsService {
       throw new ServiceUnavailableException(UNAVAILABLE_MESSAGE)
     }
 
-    // Текст в лог не идёт: в нём сам код подтверждения. По id сообщение
-    // находится в кабинете SMS Aero вместе со статусом доставки.
-    this.logger.log(`SMS отправлена на ${phone} (${payload.messageId})`)
+    // Сам код в лог не идёт. По id сообщение находится в кабинете SMS Aero —
+    // там же виден и статус доставки: принят провайдером ≠ доставлен.
+    const channel = this.config.sign ? 'Telegram с каскадом в SMS' : 'Telegram'
+    this.logger.log(`Код отправлен на ${phone} — ${channel} (id ${payload.messageId})`)
   }
 }

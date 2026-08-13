@@ -32,7 +32,8 @@ export class AuthService {
   ) {}
 
   /**
-   * Выдаёт код и отправляет его SMS-кой.
+   * Выдаёт код и отправляет его в Telegram (с каскадом в SMS, если задано своё
+   * имя отправителя).
    *
    * Порядок шагов важен. Пауза проверяется до капчи: дёргать Яндекс ради заведомо
    * отклонённого запроса незачем. Капча — до генерации кода, потому что это
@@ -60,10 +61,13 @@ export class AuthService {
 
     await this.captchaService.validate(captchaToken, ip)
 
-    const code = String(Math.floor(Math.random() * 1_000_000)).padStart(6, '0')
+    // Диапазон 100000–999999, а не padStart от нуля: провайдер принимает код
+    // числом, и «012345» уехало бы к нему как пятизначное 12345
+    const code = String(100_000 + Math.floor(Math.random() * 900_000))
     if (this.smsService.isEnabled) {
-      // Источник в тексте обязателен, пока имя отправителя — бесплатное «SMS Aero»
-      await this.smsService.send(phone, `Код для входа на flatnik.ru: ${code}`)
+      // Текст — для каскадной SMS, если код не доставили в Telegram. Источник
+      // в нём обязателен, пока имя отправителя не своё, а бесплатное
+      await this.smsService.sendCode(phone, code, `Код для входа на flatnik.ru: ${code}`)
     } else {
       this.logger.warn(`Доступы SMS Aero не заданы — код для ${phone}: ${code}`)
     }
