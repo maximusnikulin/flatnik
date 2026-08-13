@@ -14,23 +14,34 @@ const REQUEST_TIMEOUT_MS = 10_000
 
 const UNAVAILABLE_MESSAGE = 'Не удалось отправить SMS с кодом, попробуйте ещё раз'
 
+/** Идентификатор сообщения из `data.id` — по нему статус виден в кабинете SMS Aero */
+function readMessageId(parsed: object): string {
+  const data = 'data' in parsed ? parsed.data : undefined
+  if (typeof data === 'object' && data !== null && 'id' in data) {
+    const id = data.id
+    if (typeof id === 'number' || typeof id === 'string') return String(id)
+  }
+  return 'без id'
+}
+
 /**
- * Разбирает ответ провайдера: `{ success, message }`. Схеме не доверяем — сужаем
- * руками, а на не-JSON отвечаем теми же «неуспех и нет сообщения».
+ * Разбирает ответ провайдера: `{ success, message, data }`. Схеме не доверяем —
+ * сужаем руками, а на не-JSON отвечаем теми же «неуспех и нет сообщения».
  */
-function readPayload(body: string): { success: boolean; message: string } {
+function readPayload(body: string): { success: boolean; message: string; messageId: string } {
   try {
     const parsed: unknown = JSON.parse(body)
     if (typeof parsed === 'object' && parsed !== null) {
       return {
         success: 'success' in parsed && parsed.success === true,
         message: 'message' in parsed && typeof parsed.message === 'string' ? parsed.message : '',
+        messageId: readMessageId(parsed),
       }
     }
   } catch {
     // не JSON — вызывающий залогирует статус ответа
   }
-  return { success: false, message: '' }
+  return { success: false, message: '', messageId: 'без id' }
 }
 
 @Injectable()
@@ -83,5 +94,9 @@ export class SmsService {
       )
       throw new ServiceUnavailableException(UNAVAILABLE_MESSAGE)
     }
+
+    // Текст в лог не идёт: в нём сам код подтверждения. По id сообщение
+    // находится в кабинете SMS Aero вместе со статусом доставки.
+    this.logger.log(`SMS отправлена на ${phone} (${payload.messageId})`)
   }
 }
