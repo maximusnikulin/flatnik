@@ -4,6 +4,11 @@
 # умолчанию теперь dev, поэтому без -f деплой поднял бы dev-стек.
 # Секреты и ключи берутся из .env рядом с этим файлом (см. .env.example).
 #
+# Наружу этот стек не смотрит: ни один сервис не публикует портов на хост.
+# HTTPS и 443 держит отдельный edge-gateway (/srv/edge на сервере), он же
+# разводит запросы по SNI между flatnik и VPN-панелью babylon. Связь — через
+# внешнюю сеть app-network, в которую входит только gateway.
+#
 # Имя проекта не задаётся намеренно: префикс контейнеров должен остаться
 # flatnik-, на имя flatnik-back-1 опирается docker inspect в deploy.yml.
 services:
@@ -83,13 +88,19 @@ services:
 
   # Единственная точка входа: и статика, и /api приходят с одного origin,
   # поэтому CORS в этой схеме не участвует вообще.
+  # Порт на хост не публикуется — до gateway достучится только edge по app-network.
   gateway:
     image: nginx:1.27-alpine
-    ports:
-      - "${GATEWAY_PORT:-8080}:80"
     volumes:
       - ./nginx/prod.conf.template:/etc/nginx/templates/default.conf.template:ro
       - front-dist:/srv/static:ro
+    networks:
+      default:
+      # Алиас задан явно: по умолчанию контейнер получил бы в общей сети имя
+      # своего сервиса — «gateway», слишком общее для чужого соседства.
+      app-network:
+        aliases:
+          - flatnik-gateway
     environment:
       # Его подставляет envsubst nginx-образа при старте.
       BACK_PORT: ${BACK_PORT:-3000}
@@ -106,15 +117,12 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Публичный HTTPS-адрес без открытия портов и настройки DNS.
-  # URL смотреть в логах: docker compose -f docker-compose.prod.yml logs cloudflared
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate --url http://gateway:80
-    depends_on:
-      gateway:
-        condition: service_started
-    restart: unless-stopped
+# app-network создаётся вне этого стека (docker network create app-network) и
+# живёт дольше него: в ней же сидит edge-gateway и сервисы babylon.
+networks:
+  default:
+  app-network:
+    external: true
 
 volumes:
   db-data:

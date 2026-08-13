@@ -1,6 +1,26 @@
 # Гейтвей production: тот же контракт, что и в dev — статика и /api на одном origin.
 # ${BACK_PORT} подставляет envsubst nginx-образа (см. environment сервиса gateway).
 # Статика приезжает не из образа, а из volume front-dist: его наполняет сервис front.
+#
+# TLS здесь нет и не должно быть: сертификат и 443 держит edge-gateway на хосте,
+# сюда запрос приходит уже расшифрованным, по HTTP, из сети app-network.
+
+# Перед этим гейтвеем стоит edge, поэтому $remote_addr — адрес его контейнера.
+# Настоящий адрес клиента едет в X-Forwarded-For; без этих трёх строк бэкенд
+# видел бы один и тот же IP у всех, и будущий rate limiting стал бы бессмысленным.
+set_real_ip_from 172.16.0.0/12;
+set_real_ip_from 10.0.0.0/8;
+set_real_ip_from 192.168.0.0/16;
+real_ip_header X-Forwarded-For;
+real_ip_recursive on;
+
+# Схему тоже знает только edge: сюда всё приходит по http, и $scheme соврал бы
+# бэкенду про http. Берём заголовок от edge, а если его нет (прямой запрос
+# внутри сети) — падаем обратно на $scheme.
+map $http_x_forwarded_proto $fwd_proto {
+    default $http_x_forwarded_proto;
+    ''      $scheme;
+}
 
 server {
     listen 80;
@@ -15,7 +35,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $fwd_proto;
     }
 
     # Ассеты vite собирает с хешем в имени — можно кешировать навсегда.

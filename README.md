@@ -9,7 +9,7 @@
 | `back/` | NestJS 10, TypeScript |
 | `front/` | React 18, Vite, Zustand, TanStack Query |
 | `shared/` | Общие типы и DTO для обеих частей |
-| Инфраструктура | Docker Compose, nginx-гейтвей, Cloudflare Tunnel |
+| Инфраструктура | Docker Compose, nginx-гейтвей, Let's Encrypt на общем edge-прокси |
 
 ## Структура
 
@@ -33,7 +33,7 @@ flatnik/
 
 ```bash
 npm install                    # нужен для типов в IDE; в контейнерах зависимости свои
-docker compose up -d --build   # postgres + shared + back + front + gateway + туннель
+docker compose up -d --build   # postgres + shared + back + front + gateway
 docker compose logs -f         # логи всех сервисов
 docker compose down            # остановить
 ```
@@ -57,7 +57,6 @@ Vite вместе с его WebSocket'ом. Поэтому CORS не участ�
 | `back` | `nest start --watch`, внутренний `${BACK_PORT}` |
 | `shared` | `tsc --watch` по контракту |
 | `postgres` | БД, `127.0.0.1:${POSTGRES_PORT}` для psql с хоста |
-| `cloudflared` | HTTPS-туннель к гейтвею (URL — в `docker compose logs cloudflared`) |
 
 Имя dev-проекта — `flatnik-dev`, поэтому его контейнеры и том с данными не
 пересекаются с production-стеком из `docker-compose.prod.yml`.
@@ -105,9 +104,6 @@ dev-дефолты, поэтому без `.env` тоже заведётся.
   (сервис Yandex SmartCaptcha), выдаёт пару «ключ клиента» / «ключ сервера» —
   `VITE_SMARTCAPTCHA_CLIENT_KEY` и `SMARTCAPTCHA_SERVER_KEY`.
 
-Пока адрес сервиса — плавающий trycloudflare, ограничение по доменам у обоих
-ключей должно быть выключено, иначе прод сломается при первом же рестарте туннеля.
-
 ### Авторизация-заглушка
 
 SMS не отправляются: `POST /api/auth/request-code` печатает шестизначный код в лог
@@ -142,27 +138,31 @@ Production-стек:
 
 | Сервис | Порт | Назначение |
 |---|---|---|
-| `gateway` | `${GATEWAY_PORT}` → 80 | nginx: статика SPA + прокси `/api` на back |
+| `gateway` | внутренний 80 | nginx: статика SPA + прокси `/api` на back |
 | `back` | внутренний `${BACK_PORT}` | NestJS, наружу не публикуется |
 | `front` | — | одноразовый: выкладывает бандл в volume `front-dist` и завершается |
-| `postgres` | `127.0.0.1:${POSTGRES_PORT}` | БД; порт только на loopback |
-| `cloudflared` | — | HTTPS-туннель к `gateway` |
+| `db` | — | Postgres, наружу не публикуется |
 
-Локально: http://localhost:8080
+**Prod-стек не публикует на хост ни одного порта.** Достучаться до `gateway`
+может только edge-прокси, и то по внешней docker-сети `app-network` — в неё
+входит один `gateway` с алиасом `flatnik-gateway`. Поэтому локальный запуск
+prod-стека покажет контейнеры, но открыть его в браузере не выйдет: для
+разработки есть dev-стек на http://localhost:8080.
 
-Ни back, ни front не имеют `ports` — снаружи доступен только гейтвей, он же
-держит статику и API на одном origin. Файл по умолчанию (`docker-compose.yml`) —
-это dev-стек, поэтому production всегда подключается явным
-`-f docker-compose.prod.yml`; без этого флага на сервере поднялся бы dev-стек,
-и в `deploy.yml` он стоит везде. `docker-compose.override.yml` в проекте намеренно нет: он
-подхватывался бы автоматически и незаметно смешал бы конфиги.
+Файл по умолчанию (`docker-compose.yml`) — это dev-стек, поэтому production
+всегда подключается явным `-f docker-compose.prod.yml`; без этого флага на
+сервере поднялся бы dev-стек, и в `deploy.yml` он стоит везде.
+`docker-compose.override.yml` в проекте намеренно нет: он подхватывался бы
+автоматически и незаметно смешал бы конфиги.
 
-Данные Postgres живут в named volume `postgres-data`: обычный `down` их не
+Данные Postgres живут в named volume `db-data`: обычный `down` их не
 трогает, а вот `down -v` удалит безвозвратно — на сервере не запускать. Схему БД на
 этапе скелета ведёт TypeORM `synchronize`; до появления реальных пользовательских
 данных его нужно заменить миграциями.
 
 ## Проверочный роут
+
+В dev-стеке — напрямую через опубликованный порт гейтвея:
 
 ```bash
 curl http://localhost:8080/api/health
@@ -172,25 +172,47 @@ curl http://localhost:8080/api/health
 { "status": "ok", "service": "back", "uptime": 42, "timestamp": "..." }
 ```
 
+В production портов наружу нет, поэтому либо снаружи через edge
+(`curl https://flatnik.ru/api/health`), либо изнутри стека:
+
+```bash
+docker compose -f docker-compose.prod.yml exec gateway wget -qO- http://127.0.0.1/api/health
+```
+
 Healthcheck'и есть у `postgres`, `back` и `gateway`; порядок старта задан через
 `depends_on`: `back` ждёт готовности базы, а `gateway` — и healthy-состояния
 `back`, и успешного завершения `front`, то есть появления бандла в volume.
 
-## Публичный URL
+## Домен, HTTPS и edge-прокси
 
-`cloudflared` поднимает HTTPS-туннель и выдаёт адрес вида `https://<случайные-слова>.trycloudflare.com`. Порты 80/443 на сервере открывать не нужно, DNS не настраивается, сертификат выдаётся автоматически.
+Публичный адрес — https://flatnik.ru. Сертификатов и порта 443 в этом
+репозитории нет: их держит **edge-gateway** — отдельный nginx в `/srv/edge` на
+сервере. Он один публикует 80 и 443, терминирует TLS для всех доменов хоста и
+разводит запросы по SNI:
 
-Адрес печатается в логи контейнера:
-
-```bash
-docker compose -f docker-compose.prod.yml logs cloudflared | grep -o 'https://.*trycloudflare.com'
+```
+:443 ──► edge-nginx ──┬── flatnik.ru      ──► flatnik-gateway:80  (этот стек)
+                      ├── www.flatnik.ru  ──► 301 на flatnik.ru
+                      ├── домены babylon  ──► remnawave-nginx:80  (VPN-панель)
+                      └── чужой SNI       ──► отбой на рукопожатии
+:80  ──► 301 на https
 ```
 
-Адрес меняется при каждом перезапуске контейнера — это ограничение бесплатных quick-туннелей. Для постоянного адреса понадобится named tunnel с токеном Cloudflare.
+Так вышло потому, что на том же сервере живёт babylon (Remnawave VPN) и 443 был
+занят им. Общий edge снимает конфликт и заодно даёт единое место для всех
+сертификатов.
+
+DNS на reg.ru — две A-записи (`@` и `www`) на IP сервера. AAAA заводить только
+если у сервера есть глобальный IPv6: пустая AAAA хуже отсутствующей, IPv6-клиент
+пойдёт по ней первой и получит таймаут.
+
+Сертификат выпускается по **DNS-01 через API reg.ru** на `flatnik.ru` и
+`*.flatnik.ru`, продлевается скриптом `/srv/edge/renew.sh` по cron. Подробности —
+в `README.md` рядом с самим edge.
 
 ## Деплой
 
-Пуш в `main` запускает `.github/workflows/deploy.yml`: по SSH на сервере выполняется `git reset --hard origin/main` и пересборка compose. В конце в лог workflow выводится актуальный URL туннеля.
+Пуш в `main` запускает `.github/workflows/deploy.yml`: по SSH на сервере выполняется `git reset --hard origin/main` и пересборка compose. В конце workflow проверяет `/api/health` дважды — изнутри стека и снаружи через https://flatnik.ru, то есть заодно и весь путь через edge.
 
 Требуемые секреты репозитория (`Settings → Secrets and variables → Actions`):
 
@@ -204,13 +226,18 @@ docker compose -f docker-compose.prod.yml logs cloudflared | grep -o 'https://.*
 
 ### Подготовка сервера
 
-Один обязательный ручной шаг — создать `/srv/flatnik/.env` по образцу
+Первый обязательный ручной шаг — создать `/srv/flatnik/.env` по образцу
 `.env.example` с боевыми значениями: `JWT_SECRET`, `POSTGRES_PASSWORD`, ключи
 Яндекса. Файл не под git, поэтому `git reset --hard` при деплое его не трогает;
 без него стек поднимется на dev-дефолтах — с дефолтным секретом и без капчи.
 Если `.env` появился после выката, нужен повторный деплой (`workflow_dispatch`
 или `docker compose -f docker-compose.prod.yml up -d --build` на сервере):
 `VITE_*`-ключи инлайнятся в бандл при сборке образа front.
+
+Второй — поднять edge-прокси в `/srv/edge` (он же выпускает сертификат) и
+убедиться, что существует сеть `app-network`: `docker network create app-network`.
+Деплой создаёт её сам, если нет, но без работающего edge сайт снаружи не
+откроется — стек портов наружу не публикует.
 
 В остальном действий не требуется: workflow сам создаёт каталог `/srv/flatnik`, клонирует репозиторий и генерирует SSH-ключ, если его нет. Образы собираются на сервере, перед сборкой чистятся кеш builder'а и висячие образы — на VPS с ~2 ГБ RAM место иначе кончается.
 
@@ -229,5 +256,5 @@ grep -c 'registry.npmjs.org' package-lock.json
 - Миграции TypeORM вместо `synchronize` (обязательно до реальных данных)
 - Настоящая отправка SMS вместо кода в логах; коды — во внешнее хранилище
 - Механизм подтверждения отзывов (сейчас статус меняется руками в БД)
-- Rate limiting на `request-code` и точный клиентский IP за прокси
-- Постоянный домен вместо quick-туннеля (заодно включить ограничение доменов у ключей Яндекса)
+- Rate limiting на `request-code`
+- Включить ограничение по доменам у ключей Яндекса — постоянный домен для этого уже есть

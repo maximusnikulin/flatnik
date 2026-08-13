@@ -62,11 +62,23 @@ healthcheck'и контейнеров — единственные провер�
 | `docker-compose.yml` (dev) | `*/Dockerfile.dev` | `docker compose ...` без флагов; плюс `npm run rebuild:dev` |
 | `docker-compose.prod.yml` | `*/Dockerfile` | `docker compose -f docker-compose.prod.yml ...` |
 
-Приложение — http://localhost:8080, health — `curl http://localhost:8080/api/health`.
+Приложение в dev — http://localhost:8080, health — `curl http://localhost:8080/api/health`.
 
 Единственная точка входа — `gateway` (nginx; шаблоны в `nginx/*.conf.template`,
 порты подставляет envsubst из `environment`). У `back` и `front` нет `ports` —
 не добавляй проброс «для отладки», это ломает модель единого origin.
+
+**Prod-стек не публикует на хост ничего**, включая `gateway`. Снаружи 80 и 443
+держит edge-прокси (`/srv/edge` на сервере, вне этого репозитория): он терминирует
+TLS и по SNI разводит запросы между flatnik и VPN-панелью babylon, которые делят
+один сервер. Связь — внешняя сеть `app-network`, в неё входит только `gateway`
+под алиасом `flatnik-gateway`. Отсюда три правила:
+
+- не добавляй `ports` в `docker-compose.prod.yml` — 443 занят, а 8080 наружу
+  открывает стек в обход edge;
+- не тащи `back`/`db` в `app-network`: там соседи, включая чужой Postgres;
+- TLS в `nginx/prod.conf.template` не нужен, он приходит уже расшифрованным.
+  Настоящий IP клиента берётся из `X-Forwarded-For` через `set_real_ip_from`.
 
 Что нельзя «упрощать» в dev-стеке:
 
@@ -81,9 +93,10 @@ healthcheck'и контейнеров — единственные провер�
   а Nest слушает только IPv4.
 
 Prod-стек: `front` — одноразовый контейнер, выкладывает бандл в volume `front-dist`
-и завершается; раздаёт его `gateway`. `deploy.yml` завязан на имена (`flatnik-back-1`,
-сервисы `back`/`cloudflared`, порт 8080) — поэтому в prod-файле нет ключа `name:`,
-а дефолт `GATEWAY_PORT` — 8080. Адрес quick-туннеля меняется при каждом рестарте — не баг.
+и завершается; раздаёт его `gateway`. `deploy.yml` завязан на имя контейнера
+`flatnik-back-1` — поэтому в prod-файле намеренно нет ключа `name:`, иначе
+префикс проекта сменится и `docker inspect` в диагностике падения перестанет
+находить контейнер.
 
 ## Маршрутизация /api
 

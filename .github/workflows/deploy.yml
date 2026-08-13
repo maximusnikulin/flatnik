@@ -11,6 +11,7 @@ concurrency:
 
 env:
   APP_DIR: /srv/flatnik
+  APP_HOST: flatnik.ru
   GH_HOST: github.com
   REPO_PATH: maximusnikulin/flatnik.git
 
@@ -103,6 +104,12 @@ jobs:
             # dev-стек, и голый docker compose up поднял бы его в production.
             COMPOSE="docker compose -f docker-compose.prod.yml"
 
+            # Сеть общая с edge-gateway и babylon, живёт дольше стека и заведена
+            # вручную. Создаём, если её нет: иначе up падает с невнятным
+            # "network app-network declared as external, but could not be found".
+            docker network inspect app-network >/dev/null 2>&1 \
+              || docker network create app-network
+
             # На сервере ~2 ГБ RAM и общий диск — чистим перед сборкой,
             # иначе слои и висячие образы быстро съедают место.
             $COMPOSE down --remove-orphans || true
@@ -122,21 +129,30 @@ jobs:
             docker builder prune -af
             docker image prune -f
 
-      - name: Health check and public URL
+      - name: Health check
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          envs: APP_DIR
+          envs: APP_DIR,APP_HOST
           script: |
             cd "$APP_DIR"
             sleep 25
             echo "=== Контейнеры ==="
             docker compose -f docker-compose.prod.yml ps
-            echo "=== /api/health ==="
-            curl -fsS http://localhost:8080/api/health || echo "health не отвечает"
-            echo "=== Публичный URL ==="
-            docker compose -f docker-compose.prod.yml logs cloudflared 2>&1 \
-              | grep -oE 'https://[a-z0-9-]+\.trycloudflare\.com' \
-              | tail -1 || echo "URL пока не выдан"
+
+            # Портов наружу у стека нет — до гейтвея достаёт только edge,
+            # поэтому изнутри проверяемся через exec.
+            echo "=== /api/health внутри стека ==="
+            docker compose -f docker-compose.prod.yml exec -T gateway \
+              wget -qO- http://127.0.0.1/api/health || echo "гейтвей не отвечает"
+
+            # А это уже полный путь: TLS на edge, SNI, проксирование в гейтвей.
+            # --resolve, чтобы не зависеть от hairpin-NAT на самом сервере.
+            echo "=== https://$APP_HOST/api/health ==="
+            curl -fsS --resolve "$APP_HOST:443:127.0.0.1" \
+              "https://$APP_HOST/api/health" || echo "снаружи health не отвечает"
+
+            echo "=== Публичный адрес ==="
+            echo "https://$APP_HOST"
