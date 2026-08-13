@@ -15,7 +15,9 @@ import {
   ApiForbiddenResponse,
   ApiNoContentResponse,
   ApiOkResponse,
+  ApiServiceUnavailableResponse,
   ApiTags,
+  ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
 import type { Request } from 'express'
@@ -40,20 +42,22 @@ export class AuthController {
     private readonly usersService: UsersService,
   ) {}
 
-  /** Запросить код подтверждения; заглушка пишет код в лог бэкенда */
+  /** Запросить код подтверждения — уходит SMS-кой на указанный номер */
   @Post('request-code')
   @HttpCode(204)
-  @ApiNoContentResponse({ description: 'Код сгенерирован и записан в лог' })
+  @ApiNoContentResponse({ description: 'Код отправлен на указанный номер' })
   @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
+  @ApiTooManyRequestsResponse({ description: 'Код на этот номер запрошен меньше минуты назад' })
+  @ApiServiceUnavailableResponse({ description: 'SMS с кодом не отправлена' })
   requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<void> {
     return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
   }
 
-  /** Обменять код из лога на JWT */
+  /** Обменять код из SMS на JWT */
   @Post('verify-code')
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })
-  @ApiUnauthorizedResponse({ description: 'Неверный или истёкший код' })
+  @ApiUnauthorizedResponse({ description: 'Неверный, истёкший код или исчерпаны попытки' })
   async verifyCode(@Body() dto: VerifyCodeDto): Promise<AuthResponseDto> {
     const { accessToken, user } = await this.authService.verifyCode(dto.phone, dto.code)
     return { accessToken, user: this.toUserDto(user) }

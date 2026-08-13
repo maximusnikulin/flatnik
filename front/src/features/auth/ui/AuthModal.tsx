@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
+import { formatPhone, isPhoneComplete, toE164 } from '../../../shared/lib/phone'
+import { PhoneInput } from '../../../shared/ui/PhoneInput'
 import { useAuthStore } from '../model/auth.store'
 import {
   meQuery,
@@ -10,7 +12,7 @@ import {
 } from '../api/auth.api'
 
 /**
- * Вход по телефону: телефон → код из лога → никнейм.
+ * Вход по телефону: телефон → код из SMS → никнейм.
  *
  * Третий шаг обязателен и появляется не только сразу после регистрации:
  * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
@@ -25,6 +27,7 @@ export function AuthModal() {
   const me = useQuery(meQuery(Boolean(token)))
   const mustChooseNickname = Boolean(token) && me.data !== undefined && !me.data.nicknameConfirmed
 
+  // Телефон храним десятью цифрами без кода страны — ровно то, что даёт маска
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [nickname, setNickname] = useState('')
@@ -50,6 +53,7 @@ export function AuthModal() {
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
   // заблокированной, иначе второй клик откроет второе задание
   const isRequesting = captcha.isRunning || requestCode.isPending
+  const canRequest = !isRequesting && isPhoneComplete(phone)
   const requestLabel = captcha.isRunning
     ? 'Подтвердите, что вы не робот'
     : requestCode.isPending
@@ -65,7 +69,7 @@ export function AuthModal() {
     if (!captchaResult.ok) return
 
     requestCode.mutate(
-      { phone, captchaToken: captchaResult.token },
+      { phone: toE164(phone), captchaToken: captchaResult.token },
       {
         onSuccess: () => {
           setStep('code')
@@ -78,7 +82,7 @@ export function AuthModal() {
   const handleVerify = (event: React.FormEvent) => {
     event.preventDefault()
     verifyCode.mutate(
-      { phone, code },
+      { phone: toE164(phone), code },
       {
         onSuccess: (data) => {
           setPhone('')
@@ -150,13 +154,7 @@ export function AuthModal() {
           <form onSubmit={handleRequest} className="modal__body">
             <label className="field">
               <span className="field__label">Телефон</span>
-              <input
-                value={phone}
-                onChange={(event) => setPhone(event.target.value)}
-                placeholder="+7 999 123-45-67"
-                autoFocus
-                required
-              />
+              <PhoneInput value={phone} onChange={setPhone} autoFocus required />
             </label>
             {captcha.isDisabled && (
               <p className="panel-note -error">
@@ -167,18 +165,15 @@ export function AuthModal() {
             <div className="captcha-slot" ref={captcha.containerRef} />
             {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
-            <button type="submit" className="btn-primary" disabled={isRequesting}>
+            <button type="submit" className="btn-primary" disabled={!canRequest}>
               {requestLabel}
             </button>
           </form>
         ) : (
           <form onSubmit={handleVerify} className="modal__body">
-            <p className="panel-note">
-              SMS пока не отправляются: код напечатан в логе бэкенда
-              (<code>docker compose logs back</code> или терминал <code>npm run dev</code>).
-            </p>
+            <p className="panel-note">Отправили SMS с кодом на {formatPhone(phone)}.</p>
             <label className="field">
-              <span className="field__label">Код из лога</span>
+              <span className="field__label">Код из SMS</span>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}

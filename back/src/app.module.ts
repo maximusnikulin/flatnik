@@ -4,6 +4,7 @@ import { HealthController } from './health/health.controller'
 import { databaseConfig } from './config/database.config'
 import { authConfig } from './config/auth.config'
 import { captchaConfig } from './config/captcha.config'
+import { smsConfig } from './config/sms.config'
 import { DatabaseModule } from './database/database.module'
 import { UsersModule } from './users/users.module'
 import { AuthModule } from './auth/auth.module'
@@ -17,7 +18,7 @@ import { ReviewsModule } from './reviews/reviews.module'
     // потому что npm-скрипты воркспейса запускаются с cwd = back/
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, authConfig, captchaConfig],
+      load: [databaseConfig, authConfig, captchaConfig, smsConfig],
       envFilePath: ['.env', '../.env'],
     }),
     DatabaseModule,

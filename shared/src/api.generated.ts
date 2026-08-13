@@ -30,7 +30,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Запросить код подтверждения; заглушка пишет код в лог бэкенда */
+        /** Запросить код подтверждения — уходит SMS-кой на указанный номер */
         post: operations["AuthController_requestCode"];
         delete?: never;
         options?: never;
@@ -47,7 +47,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Обменять код из лога на JWT */
+        /** Обменять код из SMS на JWT */
         post: operations["AuthController_verifyCode"];
         delete?: never;
         options?: never;
@@ -204,21 +204,24 @@ export interface components {
         };
         RequestCodeDto: {
             /**
-             * @description Телефон в российском формате
+             * @description Телефон в российском формате; номера других стран не обслуживаем
              * @example +79991234567
              */
             phone: string;
-            /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
+            /**
+             * @description Токен SmartCaptcha. Опционален в схеме, потому что в разработке ключей может
+             *     не быть; когда серверный ключ задан, отсутствие токена даёт 400 в CaptchaService.
+             */
             captchaToken?: string;
         };
         VerifyCodeDto: {
             /**
-             * @description Телефон в российском формате
+             * @description Телефон в российском формате; номера других стран не обслуживаем
              * @example +79991234567
              */
             phone: string;
             /**
-             * @description Шестизначный код из лога бэкенда
+             * @description Шестизначный код из SMS
              * @example 123456
              */
             code: string;
@@ -346,7 +349,9 @@ export interface components {
              */
             entrance: string;
             /**
-             * @description Кадастровый номер из выписки ЕГРН
+             * @description Кадастровый номер из выписки ЕГРН: округ:район:квартал:объект.
+             *     Квартал — шесть или семь цифр, номер объекта — от одной.
+             *     Тот же формат задаёт маска поля на фронте.
              * @example 77:01:0001075:1234
              */
             egrn: string;
@@ -439,7 +444,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Код сгенерирован и записан в лог */
+            /** @description Код отправлен на указанный номер */
             204: {
                 headers: {
                     [name: string]: unknown;
@@ -448,6 +453,20 @@ export interface operations {
             };
             /** @description Не пройдена проверка капчи */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Код на этот номер запрошен меньше минуты назад */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SMS с кодом не отправлена */
+            503: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -476,7 +495,7 @@ export interface operations {
                     "application/json": components["schemas"]["AuthResponseDto"];
                 };
             };
-            /** @description Неверный или истёкший код */
+            /** @description Неверный, истёкший код или исчерпаны попытки */
             401: {
                 headers: {
                     [name: string]: unknown;
