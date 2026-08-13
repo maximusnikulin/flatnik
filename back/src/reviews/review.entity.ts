@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  UpdateDateColumn,
 } from 'typeorm'
 import { Apartment } from '../houses/apartment.entity'
 import { User } from '../users/user.entity'
@@ -50,4 +51,8 @@ export class Review {
 
   @CreateDateColumn()
   createdAt!: Date
+
+  /** Дата последней правки; по ней сортируется список своих отзывов */
+  @UpdateDateColumn()
+  updatedAt!: Date
 }

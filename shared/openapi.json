@@ -211,6 +211,39 @@
         ]
       }
     },
+    "/api/reviews/me": {
+      "get": {
+        "operationId": "ReviewsController_listMine",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MyReviewDto"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Нет или истёк токен авторизации"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Свои отзывы с адресами квартир, недавно изменённые сверху",
+        "tags": [
+          "reviews"
+        ]
+      }
+    },
     "/api/reviews": {
       "post": {
         "operationId": "ReviewsController_create",
@@ -562,6 +595,94 @@
           "house"
         ]
       },
+      "ReviewStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "confirmed"
+        ]
+      },
+      "MyReviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              }
+            ]
+          },
+          "periodFrom": {
+            "type": "string",
+            "nullable": true,
+            "description": "Начало периода съёма",
+            "example": "2024-03-12"
+          },
+          "periodTo": {
+            "type": "string",
+            "nullable": true,
+            "description": "Конец периода съёма",
+            "example": "2025-04-12"
+          },
+          "apartmentNumber": {
+            "type": "string",
+            "description": "Номер квартиры",
+            "example": "120"
+          },
+          "entrance": {
+            "type": "string",
+            "description": "Подъезд",
+            "example": "7"
+          },
+          "id": {
+            "type": "string",
+            "description": "Идентификатор отзыва"
+          },
+          "text": {
+            "type": "string",
+            "description": "Текст отзыва"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Дата создания, ISO 8601"
+          },
+          "updatedAt": {
+            "type": "string",
+            "description": "Дата последней правки, ISO 8601; по ней отсортирован список"
+          },
+          "apartmentId": {
+            "type": "string",
+            "description": "Идентификатор квартиры, о которой отзыв"
+          },
+          "address": {
+            "type": "string",
+            "description": "Адрес дома"
+          },
+          "lat": {
+            "type": "number",
+            "description": "Широта дома — к этой точке перелетает карта"
+          },
+          "lon": {
+            "type": "number",
+            "description": "Долгота дома"
+          }
+        },
+        "required": [
+          "status",
+          "periodFrom",
+          "periodTo",
+          "apartmentNumber",
+          "entrance",
+          "id",
+          "text",
+          "createdAt",
+          "updatedAt",
+          "apartmentId",
+          "address",
+          "lat",
+          "lon"
+        ]
+      },
       "CreateReviewDto": {
         "type": "object",
         "properties": {
@@ -634,13 +755,6 @@
           "lat",
           "lon",
           "text"
-        ]
-      },
-      "ReviewStatus": {
-        "type": "string",
-        "enum": [
-          "pending",
-          "confirmed"
         ]
       },
       "ReviewCreatedDto": {

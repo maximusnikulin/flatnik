@@ -1,8 +1,9 @@
-import { Body, Controller, Post, Req, UseGuards } from '@nestjs/common'
+import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common'
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
   ApiForbiddenResponse,
+  ApiOkResponse,
   ApiTags,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger'
@@ -10,12 +11,22 @@ import type { Request } from 'express'
 import { JwtAuthGuard } from '../auth/jwt-auth.guard'
 import { CurrentUserId } from '../auth/current-user-id.decorator'
 import { ReviewsService } from './reviews.service'
-import { CreateReviewDto, ReviewCreatedDto } from './reviews.dto'
+import { CreateReviewDto, MyReviewDto, ReviewCreatedDto } from './reviews.dto'
 
 @ApiTags('reviews')
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
+
+  /** Свои отзывы с адресами квартир, недавно изменённые сверху */
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: MyReviewDto, isArray: true })
+  @ApiUnauthorizedResponse({ description: 'Нет или истёк токен авторизации' })
+  listMine(@CurrentUserId() userId: string): Promise<MyReviewDto[]> {
+    return this.reviewsService.listMine(userId)
+  }
 
   /** Создать отзыв; дом и квартира заводятся автоматически */
   @Post()

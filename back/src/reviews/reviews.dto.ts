@@ -109,6 +109,52 @@ export class ReviewDto {
   createdAt!: string
 }
 
+/** Свой отзыв в личном списке: автор известен, зато нужен адрес квартиры */
+export class MyReviewDto {
+  /** Идентификатор отзыва */
+  id!: string
+
+  @ApiProperty({ enum: ReviewStatus, enumName: 'ReviewStatus' })
+  status!: ReviewStatus
+
+  /** Текст отзыва */
+  text!: string
+
+  /** Начало периода съёма */
+  @ApiProperty({ type: String, nullable: true, example: '2024-03-12' })
+  periodFrom!: string | null
+
+  /** Конец периода съёма */
+  @ApiProperty({ type: String, nullable: true, example: '2025-04-12' })
+  periodTo!: string | null
+
+  /** Дата создания, ISO 8601 */
+  createdAt!: string
+
+  /** Дата последней правки, ISO 8601; по ней отсортирован список */
+  updatedAt!: string
+
+  /** Идентификатор квартиры, о которой отзыв */
+  apartmentId!: string
+
+  /** Номер квартиры */
+  @ApiProperty({ example: '120' })
+  apartmentNumber!: string
+
+  /** Подъезд */
+  @ApiProperty({ example: '7' })
+  entrance!: string
+
+  /** Адрес дома */
+  address!: string
+
+  /** Широта дома — к этой точке перелетает карта */
+  lat!: number
+
+  /** Долгота дома */
+  lon!: number
+}
+
 export class ReviewCreatedDto {
   reviewId!: string
 

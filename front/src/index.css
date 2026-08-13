@@ -58,12 +58,31 @@ textarea {
   inset: 0;
 }
 
-/* Правый верхний угол поверх карты: вход или профиль */
-.app__header {
+/* Правая колонка: вход или профиль, под ним — панели профиля */
+.user-panel {
   position: absolute;
   top: 16px;
   right: 16px;
-  z-index: 2;
+  bottom: 16px;
+  width: var(--panel-width);
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  /* Чип профиля — по своей ширине и прижат вправо */
+  align-items: flex-end;
+  gap: 12px;
+  pointer-events: none;
+  /* Выше .side-panel: на узком экране колонки пересекаются */
+  z-index: 3;
+}
+
+.user-panel > * {
+  pointer-events: auto;
+}
+
+/* Панель под профилем занимает всю ширину колонки */
+.user-panel > .floating-panel {
+  align-self: stretch;
 }
 
 .user-menu__enter {
@@ -438,6 +457,38 @@ textarea {
   background: var(--color-surface-muted);
 }
 
+/* Отзыв, чей дом сейчас отмечен на карте */
+.review-card.-active {
+  outline: 2px solid var(--color-primary);
+}
+
+/* Шапка своего отзыва: адрес и подпись с квартирой */
+.review-card__header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-start;
+}
+
+.review-card__address {
+  border: none;
+  background: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 700;
+  text-align: left;
+}
+
+.review-card__address:hover {
+  text-decoration: underline;
+}
+
+.review-card__caption {
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .review-card__status {
   margin: 0;
   font-size: 13px;
@@ -619,6 +670,14 @@ textarea {
 /* Мобильная раскладка: панель снизу поверх карты */
 @media (max-width: 640px) {
   .side-panel {
+    top: 12px;
+    left: 12px;
+    right: 12px;
+    bottom: 12px;
+    width: auto;
+  }
+
+  .user-panel {
     top: 12px;
     left: 12px;
     right: 12px;

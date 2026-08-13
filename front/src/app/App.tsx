@@ -4,6 +4,7 @@ import { SearchBar } from "../features/map/ui/SearchBar";
 import { useMapStore } from "../features/map/model/map.store";
 import { HousePanel } from "../features/houses/ui/HousePanel";
 import { ReviewsPanel } from "../features/reviews/ui/ReviewsPanel";
+import { MyReviewsPanel } from "../features/reviews/ui/MyReviewsPanel";
 import { AuthModal } from "../features/auth/ui/AuthModal";
 import { UserMenu } from "../features/auth/ui/UserMenu";
 import { useAuthStore } from "../features/auth/model/auth.store";
@@ -12,7 +13,8 @@ import { useReviewFormStore } from "../features/review-form/model/review-form.st
 import type { ReviewFormPrefill } from "../features/review-form/model/review-form.store";
 
 /**
- * Медиатор экрана: карта — фон, слева поиск и панели, поверх — модалки.
+ * Медиатор экрана: карта — фон, слева поиск и панели дома, справа профиль
+ * и его отзывы, поверх — модалки.
  * Фичи не импортируют друг друга; их связывает только этот компонент.
  */
 export function App() {
@@ -35,6 +37,14 @@ export function App() {
   const [pendingPrefill, setPendingPrefill] = useState<
     ReviewFormPrefill | null | undefined
   >(undefined);
+
+  // «Мои отзывы» живут в правой колонке независимо от панелей дома и квартиры
+  const [isMyReviewsOpen, setMyReviewsOpen] = useState(false);
+
+  // После выхода панель осталась бы висеть с ошибкой 401
+  useEffect(() => {
+    if (!token) setMyReviewsOpen(false);
+  }, [token]);
 
   const handleAddReview = (prefill?: ReviewFormPrefill) => {
     if (!token) {
@@ -67,9 +77,16 @@ export function App() {
         <MapView onSelectHouse={handleSelectHouse} />
       </div>
 
-      <header className="app__header">
-        <UserMenu />
-      </header>
+      <aside className="user-panel">
+        <UserMenu onOpenMyReviews={() => setMyReviewsOpen((open) => !open)} />
+        {isMyReviewsOpen && (
+          <MyReviewsPanel
+            onClose={() => setMyReviewsOpen(false)}
+            onGoToHouse={selectAddress}
+            activeAddress={selectedAddress?.address ?? null}
+          />
+        )}
+      </aside>
 
       <aside className="side-panel">
         <SearchBar />

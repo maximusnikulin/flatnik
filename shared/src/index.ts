@@ -24,6 +24,7 @@ export type HouseLookupResponse = Schemas['HouseLookupResponseDto']
 // Отзывы
 export type ReviewStatus = Schemas['ReviewStatus']
 export type Review = Schemas['ReviewDto']
+export type MyReview = Schemas['MyReviewDto']
 export type CreateReviewRequest = Schemas['CreateReviewDto']
 export type ReviewCreated = Schemas['ReviewCreatedDto']
 

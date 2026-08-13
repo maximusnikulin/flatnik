@@ -4,8 +4,12 @@ import { queryKeyRoots } from '../../../shared/api/keys'
 import { useAuthStore } from '../model/auth.store'
 import { meQuery } from '../api/auth.api'
 
+interface UserMenuProps {
+  onOpenMyReviews: () => void
+}
+
 /** Правый верхний угол: кнопка входа или ник вошедшего пользователя */
-export function UserMenu() {
+export function UserMenu({ onOpenMyReviews }: UserMenuProps) {
   const token = useAuthStore((s) => s.token)
   const openModal = useAuthStore((s) => s.openModal)
   const setToken = useAuthStore((s) => s.setToken)
@@ -50,6 +54,9 @@ export function UserMenu() {
       <span className="user-menu__nickname" title={me.data.phone}>
         {me.data.nickname}
       </span>
+      <button type="button" className="btn-link" onClick={onOpenMyReviews}>
+        Мои отзывы
+      </button>
       <button type="button" className="btn-link" onClick={signOut}>
         Выйти
       </button>

@@ -5,7 +5,12 @@ import { CaptchaService } from '../captcha/captcha.service'
 import { HousesService } from '../houses/houses.service'
 import { Review } from './review.entity'
 import { ReviewStatus } from './review-status'
-import type { CreateReviewDto, ReviewCreatedDto, ReviewDto } from './reviews.dto'
+import type {
+  CreateReviewDto,
+  MyReviewDto,
+  ReviewCreatedDto,
+  ReviewDto,
+} from './reviews.dto'
 
 @Injectable()
 export class ReviewsService {
@@ -75,6 +80,31 @@ export class ReviewsService {
       periodFrom: review.periodFrom,
       periodTo: review.periodTo,
       createdAt: review.createdAt.toISOString(),
+    }))
+  }
+
+  /** Отзывы пользователя, недавно изменённые сверху */
+  async listMine(userId: string): Promise<MyReviewDto[]> {
+    const reviews = await this.reviews.find({
+      where: { authorId: userId },
+      relations: { apartment: { house: true } },
+      order: { updatedAt: 'DESC' },
+    })
+
+    return reviews.map((review) => ({
+      id: review.id,
+      status: review.status,
+      text: review.text,
+      periodFrom: review.periodFrom,
+      periodTo: review.periodTo,
+      createdAt: review.createdAt.toISOString(),
+      updatedAt: review.updatedAt.toISOString(),
+      apartmentId: review.apartmentId,
+      apartmentNumber: review.apartment.number,
+      entrance: review.apartment.entrance,
+      address: review.apartment.house.address,
+      lat: review.apartment.house.lat,
+      lon: review.apartment.house.lon,
     }))
   }
 }

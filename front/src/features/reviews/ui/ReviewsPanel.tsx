@@ -35,7 +35,11 @@ export function ReviewsPanel({
         ) : (
           <div className="panel-list">
             {data.map((review) => (
-              <ReviewCard key={review.id} review={review} />
+              <ReviewCard
+                key={review.id}
+                review={review}
+                header={<p className="review-card__author">{review.authorName}</p>}
+              />
             ))}
           </div>
         ))}

@@ -123,6 +123,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/reviews/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Свои отзывы с адресами квартир, недавно изменённые сверху */
+        get: operations["ReviewsController_listMine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/reviews": {
         parameters: {
             query?: never;
@@ -276,6 +293,47 @@ export interface components {
             /** @description null — по этому адресу ещё нет ни одного отзыва */
             house: components["schemas"]["HouseWithApartmentsDto"] | null;
         };
+        /** @enum {string} */
+        ReviewStatus: "pending" | "confirmed";
+        MyReviewDto: {
+            status: components["schemas"]["ReviewStatus"];
+            /**
+             * @description Начало периода съёма
+             * @example 2024-03-12
+             */
+            periodFrom: string | null;
+            /**
+             * @description Конец периода съёма
+             * @example 2025-04-12
+             */
+            periodTo: string | null;
+            /**
+             * @description Номер квартиры
+             * @example 120
+             */
+            apartmentNumber: string;
+            /**
+             * @description Подъезд
+             * @example 7
+             */
+            entrance: string;
+            /** @description Идентификатор отзыва */
+            id: string;
+            /** @description Текст отзыва */
+            text: string;
+            /** @description Дата создания, ISO 8601 */
+            createdAt: string;
+            /** @description Дата последней правки, ISO 8601; по ней отсортирован список */
+            updatedAt: string;
+            /** @description Идентификатор квартиры, о которой отзыв */
+            apartmentId: string;
+            /** @description Адрес дома */
+            address: string;
+            /** @description Широта дома — к этой точке перелетает карта */
+            lat: number;
+            /** @description Долгота дома */
+            lon: number;
+        };
         CreateReviewDto: {
             /**
              * @description Номер квартиры
@@ -313,8 +371,6 @@ export interface components {
             /** @description Токен SmartCaptcha; обязателен, когда проверка капчи включена */
             captchaToken?: string;
         };
-        /** @enum {string} */
-        ReviewStatus: "pending" | "confirmed";
         ReviewCreatedDto: {
             status: components["schemas"]["ReviewStatus"];
             reviewId: string;
@@ -516,6 +572,32 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["HouseLookupResponseDto"];
                 };
+            };
+        };
+    };
+    ReviewsController_listMine: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MyReviewDto"][];
+                };
+            };
+            /** @description Нет или истёк токен авторизации */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
