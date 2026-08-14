@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   HttpCode,
+  Logger,
   NotFoundException,
   Patch,
   Post,
@@ -28,6 +29,9 @@ import { CurrentUserId } from './current-user-id.decorator'
 import {
   AuthResponseDto,
   RequestCodeDto,
+  RequestCodeResponseDto,
+  SessionPollDto,
+  SessionStatusDto,
   SetNicknameDto,
   UserDto,
   VerifyCodeDto,
@@ -37,23 +41,64 @@ import type { User } from '../users/user.entity'
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
+  private readonly logger = new Logger(AuthController.name)
+
   constructor(
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
   ) {}
 
-  /** Запросить код подтверждения — уходит в Telegram на указанный номер */
+  /**
+   * Начать вход: мобильная авторизация на указанный номер, а если она недоступна —
+   * код в Telegram. Что показывать дальше, говорит ответ: `needsCode`.
+   */
   @Post('request-code')
-  @HttpCode(204)
-  @ApiNoContentResponse({ description: 'Код отправлен на указанный номер' })
+  @HttpCode(200)
+  @ApiOkResponse({ type: RequestCodeResponseDto })
   @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
-  @ApiTooManyRequestsResponse({ description: 'Код на этот номер запрошен меньше минуты назад' })
-  @ApiServiceUnavailableResponse({ description: 'Код не отправлен' })
-  requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<void> {
+  @ApiTooManyRequestsResponse({ description: 'Вход по этому номеру запрошен меньше минуты назад' })
+  @ApiServiceUnavailableResponse({ description: 'Провайдер недоступен' })
+  requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<RequestCodeResponseDto> {
     return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
   }
 
-  /** Обменять код из Telegram на JWT */
+  /**
+   * Узнать, подтвердил ли человек вход на телефоне. Фронт опрашивает этот метод,
+   * пока идёт мобильная авторизация; при подтверждении в ответе сразу токен.
+   *
+   * POST, а не GET: телефон и секрет сессии в query-строке осели бы в логах nginx.
+   */
+  @Post('session')
+  @HttpCode(200)
+  @ApiOkResponse({ type: SessionStatusDto })
+  async pollSession(@Body() dto: SessionPollDto): Promise<SessionStatusDto> {
+    const result = await this.authService.pollSession(dto.phone, dto.sessionId)
+    if (result.status !== 'confirmed') {
+      return { status: result.status }
+    }
+    return {
+      status: 'confirmed',
+      accessToken: result.accessToken,
+      user: this.toUserDto(result.user),
+    }
+  }
+
+  /**
+   * Приёмник статусов мобильной авторизации. Решение принимает опрос статуса
+   * (см. `session`), поэтому здесь только запись в лог: адрес обязателен в запросе
+   * к провайдеру, и без эндпоинта он стучался бы в 404.
+   */
+  @Post('mobile-id/callback')
+  @HttpCode(204)
+  @ApiNoContentResponse({ description: 'Уведомление принято' })
+  mobileIdCallback(@Body() body: Record<string, unknown>): void {
+    // Целиком тело не пишем: в нём может приехать код, отправленный человеку
+    this.logger.log(
+      `Уведомление мобильной авторизации: заявка ${String(body?.id)}, статус ${String(body?.status)}`,
+    )
+  }
+
+  /** Обменять код из сообщения на JWT */
   @Post('verify-code')
   @HttpCode(200)
   @ApiOkResponse({ type: AuthResponseDto })

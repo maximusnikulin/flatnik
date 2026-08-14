@@ -38,20 +38,74 @@
           }
         },
         "responses": {
-          "204": {
-            "description": "Код отправлен на указанный номер"
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RequestCodeResponseDto"
+                }
+              }
+            }
           },
           "403": {
             "description": "Не пройдена проверка капчи"
           },
           "429": {
-            "description": "Код на этот номер запрошен меньше минуты назад"
+            "description": "Вход по этому номеру запрошен меньше минуты назад"
           },
           "503": {
-            "description": "Код не отправлен"
+            "description": "Провайдер недоступен"
           }
         },
-        "summary": "Запросить код подтверждения — уходит в Telegram на указанный номер",
+        "summary": "Начать вход: мобильная авторизация на указанный номер, а если она недоступна —\nкод в Telegram. Что показывать дальше, говорит ответ: `needsCode`.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/session": {
+      "post": {
+        "operationId": "AuthController_pollSession",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SessionPollDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionStatusDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Узнать, подтвердил ли человек вход на телефоне. Фронт опрашивает этот метод,\nпока идёт мобильная авторизация; при подтверждении в ответе сразу токен.\n\nPOST, а не GET: телефон и секрет сессии в query-строке осели бы в логах nginx.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/mobile-id/callback": {
+      "post": {
+        "operationId": "AuthController_mobileIdCallback",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": "Уведомление принято"
+          }
+        },
+        "summary": "Приёмник статусов мобильной авторизации. Решение принимает опрос статуса\n(см. `session`), поэтому здесь только запись в лог: адрес обязателен в запросе\nк провайдеру, и без эндпоинта он стучался бы в 404.",
         "tags": [
           "auth"
         ]
@@ -86,7 +140,7 @@
             "description": "Неверный, истёкший код или исчерпаны попытки"
           }
         },
-        "summary": "Обменять код из Telegram на JWT",
+        "summary": "Обменять код из сообщения на JWT",
         "tags": [
           "auth"
         ]
@@ -457,7 +511,34 @@
           "phone"
         ]
       },
-      "VerifyCodeDto": {
+      "RequestCodeResponseDto": {
+        "type": "object",
+        "properties": {
+          "method": {
+            "type": "string",
+            "description": "`mobile-id` — подтверждение приходит на SIM-карту, `code` — запасной путь\nс кодом в сообщении.",
+            "enum": [
+              "mobile-id",
+              "code"
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Секрет для опроса статуса входа",
+            "example": "3f2a9c1d4b5e6f708192a3b4c5d6e7f8"
+          },
+          "needsCode": {
+            "type": "boolean",
+            "description": "true — показать поле ввода кода; false — ждать подтверждения на телефоне"
+          }
+        },
+        "required": [
+          "method",
+          "sessionId",
+          "needsCode"
+        ]
+      },
+      "SessionPollDto": {
         "type": "object",
         "properties": {
           "phone": {
@@ -466,16 +547,16 @@
             "pattern": "/^\\+7\\d{10}$/",
             "example": "+79991234567"
           },
-          "code": {
+          "sessionId": {
             "type": "string",
-            "description": "Шестизначный код из Telegram",
-            "pattern": "/^\\d{6}$/",
-            "example": "123456"
+            "description": "Секрет, выданный при запросе входа: без него статус чужого номера не опросить",
+            "pattern": "/^[0-9a-f]{32}$/",
+            "example": "3f2a9c1d4b5e6f708192a3b4c5d6e7f8"
           }
         },
         "required": [
           "phone",
-          "code"
+          "sessionId"
         ]
       },
       "UserDto": {
@@ -505,6 +586,56 @@
           "nickname",
           "id",
           "nicknameConfirmed"
+        ]
+      },
+      "SessionStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "`pending` — ждём подтверждения, `confirmed` — вход состоялся и в ответе есть\nтокен, `expired` — попытка истекла или секрет не подошёл, нужен новый запрос.",
+            "enum": [
+              "pending",
+              "confirmed",
+              "expired"
+            ]
+          },
+          "accessToken": {
+            "type": "string",
+            "description": "Только при `confirmed`"
+          },
+          "user": {
+            "description": "Только при `confirmed`",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/UserDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "VerifyCodeDto": {
+        "type": "object",
+        "properties": {
+          "phone": {
+            "type": "string",
+            "description": "Телефон в российском формате; номера других стран не обслуживаем",
+            "pattern": "/^\\+7\\d{10}$/",
+            "example": "+79991234567"
+          },
+          "code": {
+            "type": "string",
+            "description": "Код из сообщения. Длина не фиксирована шестью цифрами: свой код мы генерируем\nшестизначным, но в мобильной авторизации код выдаёт провайдер.",
+            "pattern": "/^\\d{4,8}$/",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "phone",
+          "code"
         ]
       },
       "AuthResponseDto": {

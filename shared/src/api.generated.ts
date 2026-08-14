@@ -30,8 +30,54 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Запросить код подтверждения — уходит в Telegram на указанный номер */
+        /**
+         * Начать вход: мобильная авторизация на указанный номер, а если она недоступна —
+         *     код в Telegram. Что показывать дальше, говорит ответ: `needsCode`.
+         */
         post: operations["AuthController_requestCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/session": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Узнать, подтвердил ли человек вход на телефоне. Фронт опрашивает этот метод,
+         *     пока идёт мобильная авторизация; при подтверждении в ответе сразу токен.
+         *
+         *     POST, а не GET: телефон и секрет сессии в query-строке осели бы в логах nginx.
+         */
+        post: operations["AuthController_pollSession"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/mobile-id/callback": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Приёмник статусов мобильной авторизации. Решение принимает опрос статуса
+         *     (см. `session`), поэтому здесь только запись в лог: адрес обязателен в запросе
+         *     к провайдеру, и без эндпоинта он стучался бы в 404.
+         */
+        post: operations["AuthController_mobileIdCallback"];
         delete?: never;
         options?: never;
         head?: never;
@@ -47,7 +93,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Обменять код из Telegram на JWT */
+        /** Обменять код из сообщения на JWT */
         post: operations["AuthController_verifyCode"];
         delete?: never;
         options?: never;
@@ -231,17 +277,32 @@ export interface components {
              */
             captchaToken?: string;
         };
-        VerifyCodeDto: {
+        RequestCodeResponseDto: {
+            /**
+             * @description `mobile-id` — подтверждение приходит на SIM-карту, `code` — запасной путь
+             *     с кодом в сообщении.
+             * @enum {string}
+             */
+            method: "mobile-id" | "code";
+            /**
+             * @description Секрет для опроса статуса входа
+             * @example 3f2a9c1d4b5e6f708192a3b4c5d6e7f8
+             */
+            sessionId: string;
+            /** @description true — показать поле ввода кода; false — ждать подтверждения на телефоне */
+            needsCode: boolean;
+        };
+        SessionPollDto: {
             /**
              * @description Телефон в российском формате; номера других стран не обслуживаем
              * @example +79991234567
              */
             phone: string;
             /**
-             * @description Шестизначный код из Telegram
-             * @example 123456
+             * @description Секрет, выданный при запросе входа: без него статус чужого номера не опросить
+             * @example 3f2a9c1d4b5e6f708192a3b4c5d6e7f8
              */
-            code: string;
+            sessionId: string;
         };
         UserDto: {
             /**
@@ -261,6 +322,31 @@ export interface components {
              *     Фронт по этому флагу показывает обязательный шаг ввода ника.
              */
             nicknameConfirmed: boolean;
+        };
+        SessionStatusDto: {
+            /**
+             * @description `pending` — ждём подтверждения, `confirmed` — вход состоялся и в ответе есть
+             *     токен, `expired` — попытка истекла или секрет не подошёл, нужен новый запрос.
+             * @enum {string}
+             */
+            status: "pending" | "confirmed" | "expired";
+            /** @description Только при `confirmed` */
+            accessToken?: string;
+            /** @description Только при `confirmed` */
+            user?: components["schemas"]["UserDto"];
+        };
+        VerifyCodeDto: {
+            /**
+             * @description Телефон в российском формате; номера других стран не обслуживаем
+             * @example +79991234567
+             */
+            phone: string;
+            /**
+             * @description Код из сообщения. Длина не фиксирована шестью цифрами: свой код мы генерируем
+             *     шестизначным, но в мобильной авторизации код выдаёт провайдер.
+             * @example 123456
+             */
+            code: string;
         };
         AuthResponseDto: {
             /** @description Bearer-токен для заголовка Authorization */
@@ -475,12 +561,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Код отправлен на указанный номер */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["RequestCodeResponseDto"];
+                };
             };
             /** @description Не пройдена проверка капчи */
             403: {
@@ -489,15 +576,56 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Код на этот номер запрошен меньше минуты назад */
+            /** @description Вход по этому номеру запрошен меньше минуты назад */
             429: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Код не отправлен */
+            /** @description Провайдер недоступен */
             503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_pollSession: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SessionPollDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SessionStatusDto"];
+                };
+            };
+        };
+    };
+    AuthController_mobileIdCallback: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Уведомление принято */
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };

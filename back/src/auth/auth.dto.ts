@@ -35,11 +35,38 @@ export class RequestCodeDto extends PhoneDto {
 }
 
 export class VerifyCodeDto extends PhoneDto {
-  /** Шестизначный код из Telegram */
+  /**
+   * Код из сообщения. Длина не фиксирована шестью цифрами: свой код мы генерируем
+   * шестизначным, но в мобильной авторизации код выдаёт провайдер.
+   */
   @ApiProperty({ example: '123456' })
   @IsString()
-  @Matches(/^\d{6}$/, { message: 'Код — шесть цифр' })
+  @Matches(/^\d{4,8}$/, { message: 'Код — от 4 до 8 цифр' })
   code!: string
+}
+
+export class SessionPollDto extends PhoneDto {
+  /** Секрет, выданный при запросе входа: без него статус чужого номера не опросить */
+  @ApiProperty({ example: '3f2a9c1d4b5e6f708192a3b4c5d6e7f8' })
+  @IsString()
+  @Matches(/^[0-9a-f]{32}$/, { message: 'Некорректный идентификатор сессии' })
+  sessionId!: string
+}
+
+export class RequestCodeResponseDto {
+  /**
+   * `mobile-id` — подтверждение приходит на SIM-карту, `code` — запасной путь
+   * с кодом в сообщении.
+   */
+  @ApiProperty({ enum: ['mobile-id', 'code'] })
+  method!: 'mobile-id' | 'code'
+
+  /** true — показать поле ввода кода; false — ждать подтверждения на телефоне */
+  needsCode!: boolean
+
+  /** Секрет для опроса статуса входа */
+  @ApiProperty({ example: '3f2a9c1d4b5e6f708192a3b4c5d6e7f8' })
+  sessionId!: string
 }
 
 export class SetNicknameDto {
@@ -84,4 +111,21 @@ export class AuthResponseDto {
 
   /** Профиль вошедшего пользователя */
   user!: UserDto
+}
+
+export class SessionStatusDto {
+  /**
+   * `pending` — ждём подтверждения, `confirmed` — вход состоялся и в ответе есть
+   * токен, `expired` — попытка истекла или секрет не подошёл, нужен новый запрос.
+   */
+  @ApiProperty({ enum: ['pending', 'confirmed', 'expired'] })
+  status!: 'pending' | 'confirmed' | 'expired'
+
+  /** Только при `confirmed` */
+  @ApiProperty({ required: false })
+  accessToken?: string
+
+  /** Только при `confirmed` */
+  @ApiProperty({ required: false, type: UserDto })
+  user?: UserDto
 }

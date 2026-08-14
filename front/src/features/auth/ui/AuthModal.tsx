@@ -5,14 +5,21 @@ import { formatPhone, isPhoneComplete, toE164 } from '../../../shared/lib/phone'
 import { PhoneInput } from '../../../shared/ui/PhoneInput'
 import { useAuthStore } from '../model/auth.store'
 import {
+  authSessionQuery,
   meQuery,
+  useAcceptSession,
   useRequestCodeMutation,
   useSetNicknameMutation,
   useVerifyCodeMutation,
 } from '../api/auth.api'
 
 /**
- * Вход по телефону: телефон → код из Telegram → никнейм.
+ * Вход по телефону: телефон → подтверждение → никнейм.
+ *
+ * Подтверждений два вида, и выбирает его провайдер. Мобильная авторизация
+ * приходит на SIM-карту — вводить нечего, фронт ждёт и опрашивает статус.
+ * Если она для номера недоступна, приходит код в сообщении, и шаг становится
+ * привычным полем ввода.
  *
  * Третий шаг обязателен и появляется не только сразу после регистрации:
  * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
@@ -31,12 +38,20 @@ export function AuthModal() {
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [nickname, setNickname] = useState('')
-  const [step, setStep] = useState<'phone' | 'code'>('phone')
+  const [step, setStep] = useState<'phone' | 'waiting' | 'code'>('phone')
+  // Секрет сессии: без него бэкенд не отдаст статус входа по чужому номеру
+  const [sessionId, setSessionId] = useState('')
+  const [sessionNote, setSessionNote] = useState('')
 
   const requestCode = useRequestCodeMutation()
   const verifyCode = useVerifyCodeMutation()
   const setNicknameMutation = useSetNicknameMutation()
+  const acceptSession = useAcceptSession()
   const captcha = useCaptcha()
+
+  const session = useQuery(
+    authSessionQuery(toE164(phone), sessionId, step === 'waiting' && sessionId !== ''),
+  )
 
   // Подставляем выданный автоматически ник — его видно и можно оставить как есть.
   // Один раз на пользователя: иначе очищённое поле тут же заполнялось бы снова.
@@ -48,6 +63,33 @@ export function AuthModal() {
     }
   }, [mustChooseNickname, me.data])
 
+  // Ответ опроса обрабатываем один раз: эффект перезапускается на каждый рендер
+  // родителя, а второй вызов acceptSession обнулял бы кеш профиля впустую
+  const handledSession = useRef(false)
+  useEffect(() => {
+    const result = session.data
+    if (!result || handledSession.current) return
+
+    if (result.status === 'confirmed' && result.accessToken && result.user) {
+      handledSession.current = true
+      acceptSession({ accessToken: result.accessToken, user: result.user })
+      setPhone('')
+      setSessionId('')
+      setStep('phone')
+      // Новому пользователю ник ещё выбирать: модалка останется открытой
+      // на третьем шаге, её удержит mustChooseNickname
+      if (result.user.nicknameConfirmed) closeModal()
+      return
+    }
+
+    if (result.status === 'expired') {
+      handledSession.current = true
+      setSessionId('')
+      setStep('phone')
+      setSessionNote('Время на подтверждение вышло, запросите вход заново')
+    }
+  }, [session.data, acceptSession, closeModal])
+
   if (!isModalOpen && !mustChooseNickname) return null
 
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
@@ -57,11 +99,11 @@ export function AuthModal() {
   const requestLabel = captcha.isRunning
     ? 'Подтвердите, что вы не робот'
     : requestCode.isPending
-      ? 'Отправляем…'
-      : 'Получить код'
+      ? 'Запрашиваем…'
+      : 'Войти по телефону'
 
-  // Капча до запроса кода: она защищает от спама SMS, поэтому задание должно
-  // быть пройдено раньше, чем бэкенд возьмётся генерировать код
+  // Капча до запроса: она защищает от спама платными авторизациями, поэтому
+  // задание должно быть пройдено раньше, чем бэкенд пойдёт к провайдеру
   const handleRequest = async (event: React.FormEvent) => {
     event.preventDefault()
 
@@ -71,9 +113,13 @@ export function AuthModal() {
     requestCode.mutate(
       { phone: toE164(phone), captchaToken: captchaResult.token },
       {
-        onSuccess: () => {
-          setStep('code')
+        onSuccess: (started) => {
+          setSessionNote('')
+          setSessionId(started.sessionId)
+          handledSession.current = false
           verifyCode.reset()
+          setCode('')
+          setStep(started.needsCode ? 'code' : 'waiting')
         },
       },
     )
@@ -87,6 +133,7 @@ export function AuthModal() {
         onSuccess: (data) => {
           setPhone('')
           setCode('')
+          setSessionId('')
           setStep('phone')
           // Новому пользователю ник ещё выбирать: модалка останется открытой
           // на третьем шаге, её удержит mustChooseNickname
@@ -99,6 +146,13 @@ export function AuthModal() {
   const handleNickname = (event: React.FormEvent) => {
     event.preventDefault()
     setNicknameMutation.mutate({ nickname }, { onSuccess: () => closeModal() })
+  }
+
+  /** Вернуться к вводу телефона: начатая попытка на бэкенде истечёт сама */
+  const backToPhone = () => {
+    setSessionId('')
+    setSessionNote('')
+    setStep('phone')
   }
 
   // Закрыть можно всё, кроме обязательного выбора ника
@@ -150,7 +204,7 @@ export function AuthModal() {
           </button>
         </header>
 
-        {step === 'phone' ? (
+        {step === 'phone' && (
           <form onSubmit={handleRequest} className="modal__body">
             <label className="field">
               <span className="field__label">Телефон</span>
@@ -158,30 +212,45 @@ export function AuthModal() {
             </label>
             {captcha.isDisabled && (
               <p className="panel-note -error">
-                Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Код
-                отправляется без проверки.
+                Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Вход
+                запрашивается без проверки.
               </p>
             )}
             <div className="captcha-slot" ref={captcha.containerRef} />
             {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
+            {sessionNote && <p className="form-error">{sessionNote}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
             <button type="submit" className="btn-primary" disabled={!canRequest}>
               {requestLabel}
             </button>
           </form>
-        ) : (
-          <form onSubmit={handleVerify} className="modal__body">
+        )}
+
+        {step === 'waiting' && (
+          <div className="modal__body">
             <p className="panel-note">
-              Отправили код в Telegram на {formatPhone(phone)}.
+              Подтвердите вход на телефоне {formatPhone(phone)}: запрос придёт на SIM-карту.
+              Как только подтвердите, окно закроется само.
             </p>
+            <p className="panel-note">Ждём подтверждения…</p>
+            {session.error && <p className="form-error">{session.error.message}</p>}
+            <button type="button" className="btn-link" onClick={backToPhone}>
+              Изменить телефон
+            </button>
+          </div>
+        )}
+
+        {step === 'code' && (
+          <form onSubmit={handleVerify} className="modal__body">
+            <p className="panel-note">Отправили код на {formatPhone(phone)}.</p>
             <label className="field">
-              <span className="field__label">Код из Telegram</span>
+              <span className="field__label">Код из сообщения</span>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
                 placeholder="123456"
                 inputMode="numeric"
-                pattern="\d{6}"
+                pattern="\d{4,8}"
                 autoFocus
                 required
               />
@@ -190,7 +259,7 @@ export function AuthModal() {
             <button type="submit" className="btn-primary" disabled={verifyCode.isPending}>
               {verifyCode.isPending ? 'Проверяем…' : 'Войти'}
             </button>
-            <button type="button" className="btn-link" onClick={() => setStep('phone')}>
+            <button type="button" className="btn-link" onClick={backToPhone}>
               Изменить телефон
             </button>
           </form>

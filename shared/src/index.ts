@@ -10,6 +10,9 @@ export type HealthStatus = HealthResponse['status']
 
 // Авторизация по телефону
 export type RequestCodeRequest = Schemas['RequestCodeDto']
+export type RequestCodeResponse = Schemas['RequestCodeResponseDto']
+export type SessionPollRequest = Schemas['SessionPollDto']
+export type SessionStatus = Schemas['SessionStatusDto']
 export type VerifyCodeRequest = Schemas['VerifyCodeDto']
 export type AuthResponse = Schemas['AuthResponseDto']
 export type CurrentUser = Schemas['UserDto']
