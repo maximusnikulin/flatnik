@@ -373,6 +373,14 @@ export interface components {
             /** @description Подтверждённых отзывов по всем квартирам дома; других публично не существует */
             confirmedCount: number;
         };
+        HouseSlugsDto: {
+            /** @example moskva */
+            citySlug: string;
+            /** @example tverskaya-ulica */
+            streetSlug: string;
+            /** @example 12 */
+            houseSlug: string;
+        };
         ApartmentSummaryDto: {
             /** @description Идентификатор квартиры */
             id: string;
@@ -384,6 +392,8 @@ export interface components {
             confirmedCount: number;
         };
         HouseWithApartmentsDto: {
+            /** @description Части URL публичной страницы; null — адрес дома не разобрался на город и улицу */
+            slug: components["schemas"]["HouseSlugsDto"] | null;
             /** @description Квартиры дома, по которым есть подтверждённые отзывы */
             apartments: components["schemas"]["ApartmentSummaryDto"][];
             id: string;
@@ -394,6 +404,12 @@ export interface components {
         HouseLookupResponseDto: {
             /** @description null — по этому адресу ещё нет ни одного отзыва */
             house: components["schemas"]["HouseWithApartmentsDto"] | null;
+            /**
+             * @description Слаги для ссылки на страницу дома. Считаются и когда дома ещё нет в базе:
+             *     фронт не должен повторять транслитерацию, иначе его вариант разойдётся с
+             *     сохранённым — например, когда номер получил суффикс из-за коллизии.
+             */
+            slug: components["schemas"]["HouseSlugsDto"] | null;
         };
         /** @enum {string} */
         ReviewStatus: "pending" | "confirmed" | "rejected";
@@ -426,6 +442,8 @@ export interface components {
              * @example 7
              */
             entrance: string;
+            /** @description Части URL публичной страницы дома; null — адрес не разобрался */
+            slug: components["schemas"]["HouseSlugsDto"] | null;
             /** @description Идентификатор отзыва */
             id: string;
             /** @description Текст отзыва */

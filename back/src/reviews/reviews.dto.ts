@@ -11,6 +11,7 @@ import {
   Min,
   MinLength,
 } from 'class-validator'
+import { HouseSlugsDto } from '../houses/houses.dto'
 import { ReviewStatus } from './review-status'
 
 /** Потолок длины отзыва: столько же стоит в textarea формы */
@@ -225,6 +226,10 @@ export class MyReviewDto {
 
   /** Адрес дома */
   address!: string
+
+  /** Части URL публичной страницы дома; null — адрес не разобрался */
+  @ApiProperty({ type: HouseSlugsDto, nullable: true })
+  slug!: HouseSlugsDto | null
 
   /** Широта дома — к этой точке перелетает карта */
   lat!: number

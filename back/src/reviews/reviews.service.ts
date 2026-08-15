@@ -7,6 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
+import { toHouseSlugsDto } from '../houses/houses.dto'
 import { HousesService } from '../houses/houses.service'
 import { ModerationService } from './moderation.service'
 import { Review } from './review.entity'
@@ -184,6 +185,7 @@ export class ReviewsService {
       apartmentNumber: review.apartment.number,
       entrance: review.apartment.entrance,
       address: review.apartment.house.address,
+      slug: toHouseSlugsDto(review.apartment.house),
       lat: review.apartment.house.lat,
       lon: review.apartment.house.lon,
     }

@@ -8,11 +8,9 @@ import { Apartment } from './apartment.entity'
 import { Review } from '../reviews/review.entity'
 import { ReviewStatus } from '../reviews/review-status'
 import { normalizeAddressKey } from './address-key.util'
-import type {
-  ApartmentSummaryDto,
-  HouseLookupResponseDto,
-  HousePinDto,
-} from './houses.dto'
+import { buildHouseSlugs } from './address-slug.util'
+import { toHouseSlugsDto } from './houses.dto'
+import type { ApartmentSummaryDto, HouseLookupResponseDto, HousePinDto } from './houses.dto'
 
 /** COUNT из raw-запросов pg возвращает строками */
 interface PinRow {
@@ -28,6 +26,21 @@ interface ApartmentRow {
   number: string
   entrance: string
   confirmedCount: string
+}
+
+/** Слаговые колонки дома одним объектом — их пишут вместе или не пишут вовсе */
+type HouseSlugColumns = Pick<
+  House,
+  'citySlug' | 'cityName' | 'streetSlug' | 'streetName' | 'houseSlug'
+>
+
+/** Адрес не разобрался: публичной страницы у дома не будет */
+const EMPTY_SLUGS: HouseSlugColumns = {
+  citySlug: null,
+  cityName: null,
+  streetSlug: null,
+  streetName: null,
+  houseSlug: null,
 }
 
 @Injectable()
@@ -79,7 +92,9 @@ export class HousesService {
   async findByAddress(address: string): Promise<HouseLookupResponseDto> {
     const house = await this.houses.findOneBy({ addressKey: normalizeAddressKey(address) })
     if (!house) {
-      return { house: null }
+      // Дома ещё нет, но слаги уже известны: ссылка появится, как только
+      // первый отзыв о нём пройдёт модерацию
+      return { house: null, slug: toHouseSlugsDto(buildHouseSlugs(address)) }
     }
 
     const rows = await this.apartments
@@ -108,14 +123,18 @@ export class HousesService {
       confirmedCount: Number(row.confirmedCount),
     }))
 
+    const slug = toHouseSlugsDto(house)
+
     return {
       house: {
         id: house.id,
         address: house.address,
         lat: house.lat,
         lon: house.lon,
+        slug,
         apartments,
       },
+      slug,
     }
   }
 
@@ -131,16 +150,56 @@ export class HousesService {
       return existing
     }
 
-    // ON CONFLICT DO NOTHING: проигрыш гонки не валит транзакцию,
-    // повторный SELECT забирает запись победителя
+    const slugs = await this.buildFreeSlugs(em, params.address)
+
+    // Конфликт сужен до адреса намеренно. С голым orIgnore() коллизия слагов
+    // тоже проглатывалась бы молча, и следующий findOneByOrFail падал бы с
+    // EntityNotFoundError — то есть 500 на отправке отзыва.
+    // Проигрыш гонки по адресу по-прежнему не валит транзакцию: повторный
+    // SELECT забирает запись победителя.
     await em
       .createQueryBuilder()
       .insert()
       .into(House)
-      .values({ address: params.address, addressKey, lat: params.lat, lon: params.lon })
-      .orIgnore()
+      .values({ address: params.address, addressKey, lat: params.lat, lon: params.lon, ...slugs })
+      .orIgnore('("addressKey")')
       .execute()
     return em.findOneByOrFail(House, { addressKey })
+  }
+
+  /**
+   * Слаги для нового дома со свободным номером. Разные написания одного адреса
+   * дают одинаковый слаг («улица Щорса, 5» и «ул. Щорса, 5»), поэтому занятые
+   * номера получают суффикс: 5, 5-2, 5-3.
+   *
+   * Ловить 23505 в цикле нельзя — ошибка аборчивает транзакцию создания отзыва
+   * целиком. Поэтому свободный номер выбирается заранее, а уникальный индекс
+   * остаётся страховкой от гонки: проигравший получит 500 и повторит отправку.
+   */
+  private async buildFreeSlugs(em: EntityManager, address: string): Promise<HouseSlugColumns> {
+    const slugs = buildHouseSlugs(address)
+    if (!slugs) {
+      return EMPTY_SLUGS
+    }
+
+    const taken = await em.find(House, {
+      where: { citySlug: slugs.citySlug, streetSlug: slugs.streetSlug },
+      select: { houseSlug: true },
+    })
+    const busy = new Set(taken.map((house) => house.houseSlug))
+
+    let houseSlug = slugs.houseSlug
+    for (let attempt = 2; busy.has(houseSlug); attempt++) {
+      houseSlug = `${slugs.houseSlug}-${attempt}`
+    }
+
+    return {
+      citySlug: slugs.citySlug,
+      cityName: slugs.cityName,
+      streetSlug: slugs.streetSlug,
+      streetName: slugs.streetName,
+      houseSlug,
+    }
   }
 
   /** Находит или создаёт квартиру; подъезд существующей не перезаписывается */

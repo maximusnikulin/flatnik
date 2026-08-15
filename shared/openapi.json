@@ -705,6 +705,28 @@
           "confirmedCount"
         ]
       },
+      "HouseSlugsDto": {
+        "type": "object",
+        "properties": {
+          "citySlug": {
+            "type": "string",
+            "example": "moskva"
+          },
+          "streetSlug": {
+            "type": "string",
+            "example": "tverskaya-ulica"
+          },
+          "houseSlug": {
+            "type": "string",
+            "example": "12"
+          }
+        },
+        "required": [
+          "citySlug",
+          "streetSlug",
+          "houseSlug"
+        ]
+      },
       "ApartmentSummaryDto": {
         "type": "object",
         "properties": {
@@ -735,6 +757,15 @@
       "HouseWithApartmentsDto": {
         "type": "object",
         "properties": {
+          "slug": {
+            "nullable": true,
+            "description": "Части URL публичной страницы; null — адрес дома не разобрался на город и улицу",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HouseSlugsDto"
+              }
+            ]
+          },
           "apartments": {
             "description": "Квартиры дома, по которым есть подтверждённые отзывы",
             "type": "array",
@@ -756,6 +787,7 @@
           }
         },
         "required": [
+          "slug",
           "apartments",
           "id",
           "address",
@@ -774,10 +806,20 @@
                 "$ref": "#/components/schemas/HouseWithApartmentsDto"
               }
             ]
+          },
+          "slug": {
+            "nullable": true,
+            "description": "Слаги для ссылки на страницу дома. Считаются и когда дома ещё нет в базе:\nфронт не должен повторять транслитерацию, иначе его вариант разойдётся с\nсохранённым — например, когда номер получил суффикс из-за коллизии.",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HouseSlugsDto"
+              }
+            ]
           }
         },
         "required": [
-          "house"
+          "house",
+          "slug"
         ]
       },
       "ReviewStatus": {
@@ -831,6 +873,15 @@
             "description": "Подъезд",
             "example": "7"
           },
+          "slug": {
+            "nullable": true,
+            "description": "Части URL публичной страницы дома; null — адрес не разобрался",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/HouseSlugsDto"
+              }
+            ]
+          },
           "id": {
             "type": "string",
             "description": "Идентификатор отзыва"
@@ -872,6 +923,7 @@
           "rejectionReason",
           "apartmentNumber",
           "entrance",
+          "slug",
           "id",
           "text",
           "createdAt",
