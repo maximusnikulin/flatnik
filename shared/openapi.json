@@ -801,14 +801,14 @@
           "periodFrom": {
             "type": "string",
             "nullable": true,
-            "description": "Начало периода съёма",
-            "example": "2024-03-12"
+            "description": "Начало периода съёма, месяц и год",
+            "example": "2024-03"
           },
           "periodTo": {
             "type": "string",
             "nullable": true,
-            "description": "Конец периода съёма",
-            "example": "2025-04-12"
+            "description": "Конец периода съёма, месяц и год",
+            "example": "2025-04"
           },
           "rejectionReason": {
             "type": "string",
@@ -900,15 +900,15 @@
           },
           "periodFrom": {
             "type": "string",
-            "description": "Начало периода съёма, ISO-дата",
-            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
-            "example": "2024-03-12"
+            "description": "Начало периода съёма, месяц и год",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "example": "2024-03"
           },
           "periodTo": {
             "type": "string",
-            "description": "Конец периода съёма, ISO-дата",
-            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
-            "example": "2025-04-12"
+            "description": "Конец периода съёма, месяц и год",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "example": "2025-04"
           },
           "address": {
             "type": "string",
@@ -932,7 +932,7 @@
             "type": "string",
             "description": "Текст отзыва",
             "minLength": 10,
-            "maxLength": 10000
+            "maxLength": 500
           },
           "captchaToken": {
             "type": "string",
@@ -981,21 +981,21 @@
         "properties": {
           "periodFrom": {
             "type": "string",
-            "description": "Начало периода съёма, ISO-дата",
-            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
-            "example": "2024-03-12"
+            "description": "Начало периода съёма, месяц и год",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "example": "2024-03"
           },
           "periodTo": {
             "type": "string",
-            "description": "Конец периода съёма, ISO-дата",
-            "pattern": "/^\\d{4}-\\d{2}-\\d{2}$/",
-            "example": "2025-04-12"
+            "description": "Конец периода съёма, месяц и год",
+            "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+            "example": "2025-04"
           },
           "text": {
             "type": "string",
             "description": "Текст отзыва",
             "minLength": 10,
-            "maxLength": 10000
+            "maxLength": 500
           },
           "captchaToken": {
             "type": "string",
@@ -1019,14 +1019,14 @@
           "periodFrom": {
             "type": "string",
             "nullable": true,
-            "description": "Начало периода съёма",
-            "example": "2024-03-12"
+            "description": "Начало периода съёма, месяц и год",
+            "example": "2024-03"
           },
           "periodTo": {
             "type": "string",
             "nullable": true,
-            "description": "Конец периода съёма",
-            "example": "2025-04-12"
+            "description": "Конец периода съёма, месяц и год",
+            "example": "2025-04"
           },
           "id": {
             "type": "string",

@@ -19,6 +19,19 @@ import type {
   UpdateReviewDto,
 } from './reviews.dto'
 
+/**
+ * Период съёма приходит месяцем («2024-03»), а колонки в БД — `date`. Кладём
+ * первое число месяца: тип остаётся датой, сравнения и сортировки работают.
+ */
+function toStoredDate(month: string | undefined): string | null {
+  return month ? `${month}-01` : null
+}
+
+/** Обратное преобразование: из даты в БД наружу отдаём только месяц и год */
+function toMonth(stored: string | null): string | null {
+  return stored ? stored.slice(0, 7) : null
+}
+
 @Injectable()
 export class ReviewsService {
   constructor(
@@ -57,8 +70,8 @@ export class ReviewsService {
           authorId: userId,
           egrn: dto.egrn,
           text: dto.text,
-          periodFrom: dto.periodFrom ?? null,
-          periodTo: dto.periodTo ?? null,
+          periodFrom: toStoredDate(dto.periodFrom),
+          periodTo: toStoredDate(dto.periodTo),
           status: ReviewStatus.Pending,
           rejectionReason: null,
         }),
@@ -108,8 +121,8 @@ export class ReviewsService {
     await this.captchaService.validate(dto.captchaToken, ip)
 
     review.text = dto.text
-    review.periodFrom = dto.periodFrom ?? null
-    review.periodTo = dto.periodTo ?? null
+    review.periodFrom = toStoredDate(dto.periodFrom)
+    review.periodTo = toStoredDate(dto.periodTo)
     review.status = ReviewStatus.Pending
     review.rejectionReason = null
     await this.reviews.save(review)
@@ -135,8 +148,8 @@ export class ReviewsService {
       status: review.status,
       authorName: review.author.nickname,
       text: review.text,
-      periodFrom: review.periodFrom,
-      periodTo: review.periodTo,
+      periodFrom: toMonth(review.periodFrom),
+      periodTo: toMonth(review.periodTo),
       createdAt: review.createdAt.toISOString(),
     }))
   }
@@ -158,8 +171,8 @@ export class ReviewsService {
       id: review.id,
       status: review.status,
       text: review.text,
-      periodFrom: review.periodFrom,
-      periodTo: review.periodTo,
+      periodFrom: toMonth(review.periodFrom),
+      periodTo: toMonth(review.periodTo),
       rejectionReason: review.rejectionReason,
       createdAt: review.createdAt.toISOString(),
       updatedAt: review.updatedAt.toISOString(),

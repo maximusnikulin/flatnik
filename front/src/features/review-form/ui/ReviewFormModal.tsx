@@ -6,6 +6,9 @@ import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { EgrnInput } from '../../../shared/ui/EgrnInput'
 
+/** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
+const TEXT_MAX_LENGTH = 500
+
 interface ReviewFormModalProps {
   /** Дом для нового отзыва; в режиме правки адрес берётся из самого отзыва */
   house: { address: string; lat: number; lon: number } | null
@@ -141,16 +144,18 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
 
           <div className="field">
             <span className="field__label">Период съёма</span>
+            {/* Месяц и год: точный день съезда никто не помнит, а лишняя
+                точность в публичном отзыве только помогает опознать жильца */}
             <div className="field-row">
               <input
-                type="date"
+                type="month"
                 value={form.periodFrom}
                 onChange={(event) => form.setField('periodFrom', event.target.value)}
                 aria-label="Начало периода съёма"
               />
               <span className="field-row__dash">—</span>
               <input
-                type="date"
+                type="month"
                 value={form.periodTo}
                 onChange={(event) => form.setField('periodTo', event.target.value)}
                 aria-label="Конец периода съёма"
@@ -179,9 +184,13 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
               placeholder="Введите текст"
               rows={6}
               minLength={10}
-              maxLength={10000}
+              maxLength={TEXT_MAX_LENGTH}
               required
             />
+            {/* Лимит жёсткий, поэтому он должен быть виден до, а не после отправки */}
+            <span className="field__counter">
+              {form.text.length} / {TEXT_MAX_LENGTH}
+            </span>
           </label>
 
           {isEditing && (

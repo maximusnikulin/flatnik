@@ -11,11 +11,18 @@ export function formatDate(iso: string): string {
   return `${day}.${month}.${year.slice(2)}`
 }
 
+/** '2024-03' → '03.2024'; период съёма хранится с точностью до месяца */
+function formatMonth(iso: string): string {
+  const [year, month] = iso.split('-')
+  return `${month}.${year}`
+}
+
 function formatPeriod(review: ReviewCardData): string | null {
   const { periodFrom, periodTo } = review
-  if (periodFrom && periodTo) return `Период съёма с ${formatDate(periodFrom)} по ${formatDate(periodTo)}`
-  if (periodFrom) return `Период съёма с ${formatDate(periodFrom)}`
-  if (periodTo) return `Период съёма по ${formatDate(periodTo)}`
+  if (periodFrom && periodTo)
+    return `Период съёма с ${formatMonth(periodFrom)} по ${formatMonth(periodTo)}`
+  if (periodFrom) return `Период съёма с ${formatMonth(periodFrom)}`
+  if (periodTo) return `Период съёма по ${formatMonth(periodTo)}`
   return null
 }
 

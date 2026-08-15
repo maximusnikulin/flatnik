@@ -658,6 +658,13 @@ textarea {
   font-weight: 600;
 }
 
+/* Счётчик символов под текстом отзыва */
+.field__counter {
+  align-self: flex-end;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
 .field input,
 .field textarea {
   padding: 12px 14px;

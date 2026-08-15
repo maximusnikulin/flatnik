@@ -400,13 +400,13 @@ export interface components {
         MyReviewDto: {
             status: components["schemas"]["ReviewStatus"];
             /**
-             * @description Начало периода съёма
-             * @example 2024-03-12
+             * @description Начало периода съёма, месяц и год
+             * @example 2024-03
              */
             periodFrom: string | null;
             /**
-             * @description Конец периода съёма
-             * @example 2025-04-12
+             * @description Конец периода съёма, месяц и год
+             * @example 2025-04
              */
             periodTo: string | null;
             /** @description Причина отклонения от модератора; null — отзыв не отклоняли */
@@ -457,13 +457,13 @@ export interface components {
              */
             egrn: string;
             /**
-             * @description Начало периода съёма, ISO-дата
-             * @example 2024-03-12
+             * @description Начало периода съёма, месяц и год
+             * @example 2024-03
              */
             periodFrom?: string;
             /**
-             * @description Конец периода съёма, ISO-дата
-             * @example 2025-04-12
+             * @description Конец периода съёма, месяц и год
+             * @example 2025-04
              */
             periodTo?: string;
             /** @description Канонический адрес дома от геокодера */
@@ -485,13 +485,13 @@ export interface components {
         };
         UpdateReviewDto: {
             /**
-             * @description Начало периода съёма, ISO-дата
-             * @example 2024-03-12
+             * @description Начало периода съёма, месяц и год
+             * @example 2024-03
              */
             periodFrom?: string;
             /**
-             * @description Конец периода съёма, ISO-дата
-             * @example 2025-04-12
+             * @description Конец периода съёма, месяц и год
+             * @example 2025-04
              */
             periodTo?: string;
             /** @description Текст отзыва */
@@ -502,13 +502,13 @@ export interface components {
         ReviewDto: {
             status: components["schemas"]["ReviewStatus"];
             /**
-             * @description Начало периода съёма
-             * @example 2024-03-12
+             * @description Начало периода съёма, месяц и год
+             * @example 2024-03
              */
             periodFrom: string | null;
             /**
-             * @description Конец периода съёма
-             * @example 2025-04-12
+             * @description Конец периода съёма, месяц и год
+             * @example 2025-04
              */
             periodTo: string | null;
             /** @description Идентификатор отзыва */

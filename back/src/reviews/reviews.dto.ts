@@ -12,6 +12,20 @@ import {
 } from 'class-validator'
 import { ReviewStatus } from './review-status'
 
+/** Потолок длины отзыва: столько же стоит в textarea формы */
+const TEXT_MAX_LENGTH = 500
+
+/**
+ * Период съёма задаётся месяцем и годом — день жильцы всё равно не помнят.
+ *
+ * В контракт выражение попадает через `pattern` в @ApiProperty: его значение
+ * вычисляется в рантайме. Разбирать @Matches плагину Swagger нельзя — он читает
+ * аргумент синтаксически и положил бы в схему имя константы.
+ */
+const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
+
+const MONTH_MESSAGE = 'Месяц в формате ГГГГ-ММ'
+
 /** Обрезает пробелы по краям строковых полей формы */
 function trimmed({ value }: { value: unknown }): unknown {
   return typeof value === 'string' ? value.trim() : value
@@ -69,19 +83,19 @@ export class CreateReviewDto {
   @Transform(trimmed)
   @IsString()
   @MinLength(10)
-  @MaxLength(10000)
+  @MaxLength(TEXT_MAX_LENGTH)
   text!: string
 
-  /** Начало периода съёма, ISO-дата */
-  @ApiProperty({ required: false, example: '2024-03-12' })
+  /** Начало периода съёма, месяц и год */
+  @ApiProperty({ required: false, example: '2024-03', pattern: MONTH_PATTERN.source })
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  @Matches(MONTH_PATTERN, { message: MONTH_MESSAGE })
   periodFrom?: string
 
-  /** Конец периода съёма, ISO-дата */
-  @ApiProperty({ required: false, example: '2025-04-12' })
+  /** Конец периода съёма, месяц и год */
+  @ApiProperty({ required: false, example: '2025-04', pattern: MONTH_PATTERN.source })
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  @Matches(MONTH_PATTERN, { message: MONTH_MESSAGE })
   periodTo?: string
 
   /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
@@ -96,19 +110,19 @@ export class UpdateReviewDto {
   @Transform(trimmed)
   @IsString()
   @MinLength(10)
-  @MaxLength(10000)
+  @MaxLength(TEXT_MAX_LENGTH)
   text!: string
 
-  /** Начало периода съёма, ISO-дата */
-  @ApiProperty({ required: false, example: '2024-03-12' })
+  /** Начало периода съёма, месяц и год */
+  @ApiProperty({ required: false, example: '2024-03', pattern: MONTH_PATTERN.source })
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  @Matches(MONTH_PATTERN, { message: MONTH_MESSAGE })
   periodFrom?: string
 
-  /** Конец периода съёма, ISO-дата */
-  @ApiProperty({ required: false, example: '2025-04-12' })
+  /** Конец периода съёма, месяц и год */
+  @ApiProperty({ required: false, example: '2025-04', pattern: MONTH_PATTERN.source })
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Дата в формате ГГГГ-ММ-ДД' })
+  @Matches(MONTH_PATTERN, { message: MONTH_MESSAGE })
   periodTo?: string
 
   /** Токен SmartCaptcha; обязателен, когда проверка капчи включена */
@@ -130,12 +144,12 @@ export class ReviewDto {
   /** Текст отзыва */
   text!: string
 
-  /** Начало периода съёма */
-  @ApiProperty({ type: String, nullable: true, example: '2024-03-12' })
+  /** Начало периода съёма, месяц и год */
+  @ApiProperty({ type: String, nullable: true, example: '2024-03' })
   periodFrom!: string | null
 
-  /** Конец периода съёма */
-  @ApiProperty({ type: String, nullable: true, example: '2025-04-12' })
+  /** Конец периода съёма, месяц и год */
+  @ApiProperty({ type: String, nullable: true, example: '2025-04' })
   periodTo!: string | null
 
   /** Дата создания, ISO 8601 */
@@ -153,12 +167,12 @@ export class MyReviewDto {
   /** Текст отзыва */
   text!: string
 
-  /** Начало периода съёма */
-  @ApiProperty({ type: String, nullable: true, example: '2024-03-12' })
+  /** Начало периода съёма, месяц и год */
+  @ApiProperty({ type: String, nullable: true, example: '2024-03' })
   periodFrom!: string | null
 
-  /** Конец периода съёма */
-  @ApiProperty({ type: String, nullable: true, example: '2025-04-12' })
+  /** Конец периода съёма, месяц и год */
+  @ApiProperty({ type: String, nullable: true, example: '2025-04' })
   periodTo!: string | null
 
   /** Причина отклонения от модератора; null — отзыв не отклоняли */

@@ -2,24 +2,24 @@ import { escapeHtml, MESSAGE_LIMIT } from '../telegram/telegram.client'
 import type { TelegramReplyMarkup } from '../telegram/telegram.types'
 import type { Review } from './review.entity'
 
-/** '2024-03-12' → '12.03.2024' */
-function formatDate(iso: string): string {
-  const [year, month, day] = iso.slice(0, 10).split('-')
-  return `${day}.${month}.${year}`
+/** '2024-03-01' → '03.2024': период съёма задаётся месяцем, день в нём служебный */
+function formatMonth(iso: string): string {
+  const [year, month] = iso.slice(0, 10).split('-')
+  return `${month}.${year}`
 }
 
 function formatPeriod(review: Review): string | null {
   const { periodFrom, periodTo } = review
-  if (periodFrom && periodTo) return `${formatDate(periodFrom)} — ${formatDate(periodTo)}`
-  if (periodFrom) return `с ${formatDate(periodFrom)}`
-  if (periodTo) return `по ${formatDate(periodTo)}`
+  if (periodFrom && periodTo) return `${formatMonth(periodFrom)} — ${formatMonth(periodTo)}`
+  if (periodFrom) return `с ${formatMonth(periodFrom)}`
+  if (periodTo) return `по ${formatMonth(periodTo)}`
   return null
 }
 
 /**
  * Карточка отзыва для модератора; отзыв нужен с relations `apartment.house` и
- * `author`. Текст обрезается: лимит сообщения Bot API — 4096 символов, а отзыв
- * разрешён до 10000.
+ * `author`. Текст обрезается: лимит сообщения Bot API — 4096 символов, а отзывы,
+ * написанные до ограничения в 500 символов, бывают длиннее.
  */
 export function buildReviewCard(review: Review, isRepeat: boolean): string {
   const { apartment, author } = review
