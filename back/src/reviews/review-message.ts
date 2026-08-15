@@ -35,6 +35,10 @@ export function buildReviewCard(review: Review, isRepeat: boolean): string {
     `📄 ЕГРН: ${escapeHtml(review.egrn)}`,
     `👤 ${escapeHtml(author.nickname)}`,
   ]
+  // Оценки нет у отзывов, написанных до появления рейтинга
+  if (review.rating !== null) {
+    lines.push(`⭐ Оценка: ${review.rating}/5`)
+  }
   if (period) {
     lines.push(`📅 Период съёма: ${period}`)
   }

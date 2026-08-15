@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
 import {
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
@@ -25,6 +26,10 @@ const TEXT_MAX_LENGTH = 500
 const MONTH_PATTERN = /^\d{4}-(0[1-9]|1[0-2])$/
 
 const MONTH_MESSAGE = 'Месяц в формате ГГГГ-ММ'
+
+/** Границы оценки; те же числа задают шкалу звёзд в форме */
+const RATING_MIN = 1
+const RATING_MAX = 5
 
 /** Обрезает пробелы по краям строковых полей формы */
 function trimmed({ value }: { value: unknown }): unknown {
@@ -86,6 +91,13 @@ export class CreateReviewDto {
   @MaxLength(TEXT_MAX_LENGTH)
   text!: string
 
+  /** Оценка квартиры от 1 до 5 */
+  @ApiProperty({ type: 'integer', example: 4, minimum: RATING_MIN, maximum: RATING_MAX })
+  @IsInt()
+  @Min(RATING_MIN)
+  @Max(RATING_MAX)
+  rating!: number
+
   /** Начало периода съёма, месяц и год */
   @ApiProperty({ required: false, example: '2024-03', pattern: MONTH_PATTERN.source })
   @IsOptional()
@@ -112,6 +124,13 @@ export class UpdateReviewDto {
   @MinLength(10)
   @MaxLength(TEXT_MAX_LENGTH)
   text!: string
+
+  /** Оценка квартиры от 1 до 5 */
+  @ApiProperty({ type: 'integer', example: 4, minimum: RATING_MIN, maximum: RATING_MAX })
+  @IsInt()
+  @Min(RATING_MIN)
+  @Max(RATING_MAX)
+  rating!: number
 
   /** Начало периода съёма, месяц и год */
   @ApiProperty({ required: false, example: '2024-03', pattern: MONTH_PATTERN.source })
@@ -144,6 +163,10 @@ export class ReviewDto {
   /** Текст отзыва */
   text!: string
 
+  /** Оценка от 1 до 5; null — отзыв написан до появления рейтинга */
+  @ApiProperty({ type: Number, nullable: true, example: 4 })
+  rating!: number | null
+
   /** Начало периода съёма, месяц и год */
   @ApiProperty({ type: String, nullable: true, example: '2024-03' })
   periodFrom!: string | null
@@ -166,6 +189,10 @@ export class MyReviewDto {
 
   /** Текст отзыва */
   text!: string
+
+  /** Оценка от 1 до 5; null — отзыв написан до появления рейтинга */
+  @ApiProperty({ type: Number, nullable: true, example: 4 })
+  rating!: number | null
 
   /** Начало периода съёма, месяц и год */
   @ApiProperty({ type: String, nullable: true, example: '2024-03' })

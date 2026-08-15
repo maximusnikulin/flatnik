@@ -33,10 +33,14 @@ interface ReviewFormState {
   periodTo: string
   egrn: string
   text: string
+  /** Оценка 1–5; null — пользователь ещё не выбрал, отправка заблокирована */
+  rating: number | null
   open: (prefill?: ReviewFormPrefill) => void
   /** Правка своего отзыва: черновик заполняется его текущим содержимым */
   openEdit: (review: MyReview) => void
   setField: (field: ReviewFormField, value: string) => void
+  /** Оценка живёт отдельно от setField: там значение всегда строка */
+  setRating: (rating: number) => void
   /** Закрыть, сохранив черновик (например, поверх открылась модалка входа) */
   close: () => void
   /** Очистить после успешной отправки */
@@ -50,6 +54,7 @@ const emptyDraft = {
   periodTo: '',
   egrn: '',
   text: '',
+  rating: null,
 }
 
 export const useReviewFormStore = create<ReviewFormState>((set) => ({
@@ -78,8 +83,10 @@ export const useReviewFormStore = create<ReviewFormState>((set) => ({
       // ЕГРН не правится и в PATCH не уходит; поле в форме показывается пустым
       egrn: '',
       text: review.text,
+      rating: review.rating,
     }),
   setField: (field, value) => set((state) => ({ ...state, [field]: value })),
+  setRating: (rating) => set({ rating }),
   close: () => set({ isOpen: false }),
   reset: () => set({ isOpen: false, isApartmentLocked: false, editTarget: null, ...emptyDraft }),
 }))

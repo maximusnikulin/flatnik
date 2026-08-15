@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Review } from '@flatnik/shared'
+import { RatingStars } from '../../../shared/ui/RatingStars'
 
 /** Свыше этого порога текст сворачивается кнопкой «Раскрыть» */
 const COLLAPSE_THRESHOLD = 200
@@ -27,7 +28,7 @@ function formatPeriod(review: ReviewCardData): string | null {
 }
 
 /** Общая часть отзыва квартиры и своего отзыва — всё, что рисует карточка */
-export type ReviewCardData = Pick<Review, 'status' | 'text' | 'periodFrom' | 'periodTo'>
+export type ReviewCardData = Pick<Review, 'status' | 'text' | 'rating' | 'periodFrom' | 'periodTo'>
 
 interface ReviewCardProps {
   review: ReviewCardData
@@ -74,6 +75,8 @@ export function ReviewCard({
         </p>
       )}
       {header}
+      {/* Оценки нет у отзывов, написанных до появления рейтинга */}
+      {review.rating !== null && <RatingStars value={review.rating} />}
       <p className="review-card__text">
         {text}
         {isLong && (

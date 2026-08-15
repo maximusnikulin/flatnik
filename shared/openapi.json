@@ -798,6 +798,12 @@
               }
             ]
           },
+          "rating": {
+            "type": "number",
+            "nullable": true,
+            "description": "Оценка от 1 до 5; null — отзыв написан до появления рейтинга",
+            "example": 4
+          },
           "periodFrom": {
             "type": "string",
             "nullable": true,
@@ -860,6 +866,7 @@
         },
         "required": [
           "status",
+          "rating",
           "periodFrom",
           "periodTo",
           "rejectionReason",
@@ -897,6 +904,13 @@
             "description": "Кадастровый номер из выписки ЕГРН: округ:район:квартал:объект.\nКвартал — шесть или семь цифр, номер объекта — от одной.\nТот же формат задаёт маска поля на фронте.",
             "pattern": "/^\\d{2}:\\d{2}:\\d{6,7}:\\d{1,10}$/",
             "example": "77:01:0001075:1234"
+          },
+          "rating": {
+            "type": "integer",
+            "description": "Оценка квартиры от 1 до 5",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 4
           },
           "periodFrom": {
             "type": "string",
@@ -943,6 +957,7 @@
           "apartmentNumber",
           "entrance",
           "egrn",
+          "rating",
           "address",
           "lat",
           "lon",
@@ -979,6 +994,13 @@
       "UpdateReviewDto": {
         "type": "object",
         "properties": {
+          "rating": {
+            "type": "integer",
+            "description": "Оценка квартиры от 1 до 5",
+            "minimum": 1,
+            "maximum": 5,
+            "example": 4
+          },
           "periodFrom": {
             "type": "string",
             "description": "Начало периода съёма, месяц и год",
@@ -1003,6 +1025,7 @@
           }
         },
         "required": [
+          "rating",
           "text"
         ]
       },
@@ -1015,6 +1038,12 @@
                 "$ref": "#/components/schemas/ReviewStatus"
               }
             ]
+          },
+          "rating": {
+            "type": "number",
+            "nullable": true,
+            "description": "Оценка от 1 до 5; null — отзыв написан до появления рейтинга",
+            "example": 4
           },
           "periodFrom": {
             "type": "string",
@@ -1047,6 +1076,7 @@
         },
         "required": [
           "status",
+          "rating",
           "periodFrom",
           "periodTo",
           "id",

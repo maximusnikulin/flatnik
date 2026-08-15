@@ -5,6 +5,7 @@ import { useCreateReviewMutation } from '../api/create-review'
 import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { EgrnInput } from '../../../shared/ui/EgrnInput'
+import { RatingInput } from '../../../shared/ui/RatingInput'
 
 /** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
 const TEXT_MAX_LENGTH = 500
@@ -31,7 +32,9 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
       periodTo: s.periodTo,
       egrn: s.egrn,
       text: s.text,
+      rating: s.rating,
       setField: s.setField,
+      setRating: s.setRating,
       close: s.close,
       reset: s.reset,
     })),
@@ -57,14 +60,19 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
     const captchaResult = await captcha.getToken()
     if (!captchaResult.ok) return
 
-    const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text } =
+    const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text, rating } =
       useReviewFormStore.getState()
+
+    // Кнопка отправки заблокирована без оценки, но состояние читается заново —
+    // сузить тип надо и здесь
+    if (rating === null) return
 
     if (editTarget) {
       updateMutation.mutate(
         {
           reviewId: editTarget.reviewId,
           text,
+          rating,
           periodFrom: periodFrom || undefined,
           periodTo: periodTo || undefined,
           captchaToken: captchaResult.token,
@@ -85,6 +93,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
         entrance,
         egrn,
         text,
+        rating,
         periodFrom: periodFrom || undefined,
         periodTo: periodTo || undefined,
         captchaToken: captchaResult.token,
@@ -99,7 +108,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
     )
   }
 
-  const isBusy = captcha.isRunning || mutation.isPending
+  const isBusy = captcha.isRunning || mutation.isPending || form.rating === null
 
   return (
     <div className="modal-overlay" onClick={form.close}>
@@ -175,6 +184,11 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
               />
             </label>
           )}
+
+          <div className="field">
+            <span className="field__label">Оценка</span>
+            <RatingInput value={form.rating} onChange={form.setRating} />
+          </div>
 
           <label className="field">
             <span className="field__label">Ваш отзыв</span>

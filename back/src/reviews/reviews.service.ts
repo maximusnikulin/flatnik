@@ -70,6 +70,7 @@ export class ReviewsService {
           authorId: userId,
           egrn: dto.egrn,
           text: dto.text,
+          rating: dto.rating,
           periodFrom: toStoredDate(dto.periodFrom),
           periodTo: toStoredDate(dto.periodTo),
           status: ReviewStatus.Pending,
@@ -121,6 +122,7 @@ export class ReviewsService {
     await this.captchaService.validate(dto.captchaToken, ip)
 
     review.text = dto.text
+    review.rating = dto.rating
     review.periodFrom = toStoredDate(dto.periodFrom)
     review.periodTo = toStoredDate(dto.periodTo)
     review.status = ReviewStatus.Pending
@@ -148,6 +150,7 @@ export class ReviewsService {
       status: review.status,
       authorName: review.author.nickname,
       text: review.text,
+      rating: review.rating,
       periodFrom: toMonth(review.periodFrom),
       periodTo: toMonth(review.periodTo),
       createdAt: review.createdAt.toISOString(),
@@ -171,6 +174,7 @@ export class ReviewsService {
       id: review.id,
       status: review.status,
       text: review.text,
+      rating: review.rating,
       periodFrom: toMonth(review.periodFrom),
       periodTo: toMonth(review.periodTo),
       rejectionReason: review.rejectionReason,

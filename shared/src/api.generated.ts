@@ -400,6 +400,11 @@ export interface components {
         MyReviewDto: {
             status: components["schemas"]["ReviewStatus"];
             /**
+             * @description Оценка от 1 до 5; null — отзыв написан до появления рейтинга
+             * @example 4
+             */
+            rating: number | null;
+            /**
              * @description Начало периода съёма, месяц и год
              * @example 2024-03
              */
@@ -457,6 +462,11 @@ export interface components {
              */
             egrn: string;
             /**
+             * @description Оценка квартиры от 1 до 5
+             * @example 4
+             */
+            rating: number;
+            /**
              * @description Начало периода съёма, месяц и год
              * @example 2024-03
              */
@@ -485,6 +495,11 @@ export interface components {
         };
         UpdateReviewDto: {
             /**
+             * @description Оценка квартиры от 1 до 5
+             * @example 4
+             */
+            rating: number;
+            /**
              * @description Начало периода съёма, месяц и год
              * @example 2024-03
              */
@@ -501,6 +516,11 @@ export interface components {
         };
         ReviewDto: {
             status: components["schemas"]["ReviewStatus"];
+            /**
+             * @description Оценка от 1 до 5; null — отзыв написан до появления рейтинга
+             * @example 4
+             */
+            rating: number | null;
             /**
              * @description Начало периода съёма, месяц и год
              * @example 2024-03

@@ -1,4 +1,5 @@
 import {
+  Check,
   Column,
   CreateDateColumn,
   Entity,
@@ -13,6 +14,7 @@ import { ReviewStatus } from './review-status'
 
 /** Отзыв о съёме конкретной квартиры */
 @Entity('reviews')
+@Check('"rating" IS NULL OR ("rating" BETWEEN 1 AND 5)')
 export class Review {
   @PrimaryGeneratedColumn('uuid')
   id!: string
@@ -37,6 +39,10 @@ export class Review {
 
   @Column({ type: 'text' })
   text!: string
+
+  /** Оценка от 1 до 5; null — отзыв написан до появления рейтинга */
+  @Column({ type: 'smallint', nullable: true })
+  rating!: number | null
 
   /** Начало периода съёма; колонки date TypeORM возвращает строками */
   @Column({ type: 'date', nullable: true })
