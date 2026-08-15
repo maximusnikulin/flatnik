@@ -23,6 +23,17 @@ export type HousePin = Schemas['HousePinDto']
 export type ApartmentSummary = Schemas['ApartmentSummaryDto']
 export type HouseWithApartments = Schemas['HouseWithApartmentsDto']
 export type HouseLookupResponse = Schemas['HouseLookupResponseDto']
+export type HouseSlugs = Schemas['HouseSlugsDto']
+
+// Каталог: город → улица → дом
+export type CityListItem = Schemas['CityListItemDto']
+export type CityPage = Schemas['CityPageDto']
+export type StreetListItem = Schemas['StreetListItemDto']
+export type StreetPage = Schemas['StreetPageDto']
+export type StreetHouse = Schemas['StreetHouseDto']
+export type HousePage = Schemas['HousePageDto']
+export type HouseApartment = Schemas['HouseApartmentDto']
+export type HouseReview = Schemas['HouseReviewDto']
 
 // Отзывы
 export type ReviewStatus = Schemas['ReviewStatus']

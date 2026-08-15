@@ -237,6 +237,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/catalog/cities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Города, где есть подтверждённые отзывы */
+        get: operations["CatalogController_cities"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/cities/{citySlug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Улицы города */
+        get: operations["CatalogController_city"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/cities/{citySlug}/streets/{streetSlug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Дома улицы */
+        get: operations["CatalogController_street"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/catalog/cities/{citySlug}/streets/{streetSlug}/houses/{houseSlug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Дом со всеми подтверждёнными отзывами */
+        get: operations["CatalogController_house"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -557,6 +625,132 @@ export interface components {
             text: string;
             /** @description Дата создания, ISO 8601 */
             createdAt: string;
+        };
+        CityListItemDto: {
+            /** @example moskva */
+            citySlug: string;
+            /** @example Москва */
+            cityName: string;
+            /** @description Домов с подтверждёнными отзывами */
+            houseCount: number;
+            /** @description Подтверждённых отзывов по всему городу */
+            reviewCount: number;
+        };
+        StreetListItemDto: {
+            /** @example tverskaya-ulica */
+            streetSlug: string;
+            /** @example Тверская улица */
+            streetName: string;
+            /**
+             * @description Средняя оценка по улице, округлённая до десятых; null — ни одной оценки
+             * @example 4.3
+             */
+            ratingAvg: number | null;
+            houseCount: number;
+            reviewCount: number;
+        };
+        CityPageDto: {
+            /** @example moskva */
+            citySlug: string;
+            /** @example Москва */
+            cityName: string;
+            streets: components["schemas"]["StreetListItemDto"][];
+            houseCount: number;
+            reviewCount: number;
+            /** @description Всего улиц в городе: по нему считается число страниц */
+            streetCount: number;
+        };
+        StreetHouseDto: {
+            /** @example 12 */
+            houseSlug: string;
+            /**
+             * @description Номер дома как в адресе: «12с17»
+             * @example 12с17
+             */
+            houseNumber: string;
+            /** @example 4.3 */
+            ratingAvg: number | null;
+            id: string;
+            address: string;
+            reviewCount: number;
+        };
+        StreetPageDto: {
+            /** @example moskva */
+            citySlug: string;
+            /** @example Москва */
+            cityName: string;
+            /** @example tverskaya-ulica */
+            streetSlug: string;
+            /** @example Тверская улица */
+            streetName: string;
+            /** @example 4.3 */
+            ratingAvg: number | null;
+            houses: components["schemas"]["StreetHouseDto"][];
+            reviewCount: number;
+            /** @description Всего домов на улице */
+            houseCount: number;
+        };
+        HouseApartmentDto: {
+            /** @example 120 */
+            number: string;
+            /** @example 7 */
+            entrance: string;
+            /** @example 4.3 */
+            ratingAvg: number | null;
+            id: string;
+            reviewCount: number;
+        };
+        HouseReviewDto: {
+            status: components["schemas"]["ReviewStatus"];
+            /** @example 4 */
+            rating: number | null;
+            /** @example 2024-03 */
+            periodFrom: string | null;
+            /** @example 2025-04 */
+            periodTo: string | null;
+            /** @example 120 */
+            apartmentNumber: string;
+            /** @example 7 */
+            entrance: string;
+            id: string;
+            /** @description Никнейм автора */
+            authorName: string;
+            text: string;
+            /** @description Дата создания, ISO 8601 */
+            createdAt: string;
+            apartmentId: string;
+        };
+        HousePageDto: {
+            /** @example moskva */
+            citySlug: string;
+            /** @example Москва */
+            cityName: string;
+            /** @example tverskaya-ulica */
+            streetSlug: string;
+            /** @example Тверская улица */
+            streetName: string;
+            /** @example 12 */
+            houseSlug: string;
+            /** @example 12с17 */
+            houseNumber: string;
+            /**
+             * @description Средняя оценка, округлённая до десятых; null — ни у одного отзыва нет оценки
+             * @example 4.3
+             */
+            ratingAvg: number | null;
+            /** @description Дата последнего изменения отзывов, ISO 8601; из неё берётся lastmod в sitemap */
+            updatedAt: string | null;
+            apartments: components["schemas"]["HouseApartmentDto"][];
+            reviews: components["schemas"]["HouseReviewDto"][];
+            id: string;
+            /** @description Полный адрес от геокодера */
+            address: string;
+            lat: number;
+            lon: number;
+            /** @description Подтверждённых отзывов по всему дому */
+            reviewCount: number;
+            /** @description Отзывов с оценкой; в разметке это reviewCount у aggregateRating */
+            ratingCount: number;
         };
     };
     responses: never;
@@ -924,6 +1118,97 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReviewDto"][];
+                };
+            };
+        };
+    };
+    CatalogController_cities: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityListItemDto"][];
+                };
+            };
+        };
+    };
+    CatalogController_city: {
+        parameters: {
+            query?: {
+                /** @description Номер страницы, с единицы */
+                page?: number;
+            };
+            header?: never;
+            path: {
+                citySlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CityPageDto"];
+                };
+            };
+        };
+    };
+    CatalogController_street: {
+        parameters: {
+            query?: {
+                /** @description Номер страницы, с единицы */
+                page?: number;
+            };
+            header?: never;
+            path: {
+                citySlug: string;
+                streetSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreetPageDto"];
+                };
+            };
+        };
+    };
+    CatalogController_house: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                citySlug: string;
+                streetSlug: string;
+                houseSlug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HousePageDto"];
                 };
             };
         };

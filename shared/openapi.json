@@ -438,6 +438,170 @@
           "reviews"
         ]
       }
+    },
+    "/api/catalog/cities": {
+      "get": {
+        "operationId": "CatalogController_cities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CityListItemDto"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Города, где есть подтверждённые отзывы",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/catalog/cities/{citySlug}": {
+      "get": {
+        "operationId": "CatalogController_city",
+        "parameters": [
+          {
+            "name": "citySlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Номер страницы, с единицы",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CityPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Улицы города",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/catalog/cities/{citySlug}/streets/{streetSlug}": {
+      "get": {
+        "operationId": "CatalogController_street",
+        "parameters": [
+          {
+            "name": "citySlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "streetSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Номер страницы, с единицы",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StreetPageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Дома улицы",
+        "tags": [
+          "catalog"
+        ]
+      }
+    },
+    "/api/catalog/cities/{citySlug}/streets/{streetSlug}/houses/{houseSlug}": {
+      "get": {
+        "operationId": "CatalogController_house",
+        "parameters": [
+          {
+            "name": "citySlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "streetSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "houseSlug",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HousePageDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Дом со всеми подтверждёнными отзывами",
+        "tags": [
+          "catalog"
+        ]
+      }
     }
   },
   "info": {
@@ -1135,6 +1299,374 @@
           "authorName",
           "text",
           "createdAt"
+        ]
+      },
+      "CityListItemDto": {
+        "type": "object",
+        "properties": {
+          "citySlug": {
+            "type": "string",
+            "example": "moskva"
+          },
+          "cityName": {
+            "type": "string",
+            "example": "Москва"
+          },
+          "houseCount": {
+            "type": "number",
+            "description": "Домов с подтверждёнными отзывами"
+          },
+          "reviewCount": {
+            "type": "number",
+            "description": "Подтверждённых отзывов по всему городу"
+          }
+        },
+        "required": [
+          "citySlug",
+          "cityName",
+          "houseCount",
+          "reviewCount"
+        ]
+      },
+      "StreetListItemDto": {
+        "type": "object",
+        "properties": {
+          "streetSlug": {
+            "type": "string",
+            "example": "tverskaya-ulica"
+          },
+          "streetName": {
+            "type": "string",
+            "example": "Тверская улица"
+          },
+          "ratingAvg": {
+            "type": "number",
+            "nullable": true,
+            "description": "Средняя оценка по улице, округлённая до десятых; null — ни одной оценки",
+            "example": 4.3
+          },
+          "houseCount": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "streetSlug",
+          "streetName",
+          "ratingAvg",
+          "houseCount",
+          "reviewCount"
+        ]
+      },
+      "CityPageDto": {
+        "type": "object",
+        "properties": {
+          "citySlug": {
+            "type": "string",
+            "example": "moskva"
+          },
+          "cityName": {
+            "type": "string",
+            "example": "Москва"
+          },
+          "streets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreetListItemDto"
+            }
+          },
+          "houseCount": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "number"
+          },
+          "streetCount": {
+            "type": "number",
+            "description": "Всего улиц в городе: по нему считается число страниц"
+          }
+        },
+        "required": [
+          "citySlug",
+          "cityName",
+          "streets",
+          "houseCount",
+          "reviewCount",
+          "streetCount"
+        ]
+      },
+      "StreetHouseDto": {
+        "type": "object",
+        "properties": {
+          "houseSlug": {
+            "type": "string",
+            "example": "12"
+          },
+          "houseNumber": {
+            "type": "string",
+            "description": "Номер дома как в адресе: «12с17»",
+            "example": "12с17"
+          },
+          "ratingAvg": {
+            "type": "number",
+            "nullable": true,
+            "example": 4.3
+          },
+          "id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "reviewCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "houseSlug",
+          "houseNumber",
+          "ratingAvg",
+          "id",
+          "address",
+          "reviewCount"
+        ]
+      },
+      "StreetPageDto": {
+        "type": "object",
+        "properties": {
+          "citySlug": {
+            "type": "string",
+            "example": "moskva"
+          },
+          "cityName": {
+            "type": "string",
+            "example": "Москва"
+          },
+          "streetSlug": {
+            "type": "string",
+            "example": "tverskaya-ulica"
+          },
+          "streetName": {
+            "type": "string",
+            "example": "Тверская улица"
+          },
+          "ratingAvg": {
+            "type": "number",
+            "nullable": true,
+            "example": 4.3
+          },
+          "houses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/StreetHouseDto"
+            }
+          },
+          "reviewCount": {
+            "type": "number"
+          },
+          "houseCount": {
+            "type": "number",
+            "description": "Всего домов на улице"
+          }
+        },
+        "required": [
+          "citySlug",
+          "cityName",
+          "streetSlug",
+          "streetName",
+          "ratingAvg",
+          "houses",
+          "reviewCount",
+          "houseCount"
+        ]
+      },
+      "HouseApartmentDto": {
+        "type": "object",
+        "properties": {
+          "number": {
+            "type": "string",
+            "example": "120"
+          },
+          "entrance": {
+            "type": "string",
+            "example": "7"
+          },
+          "ratingAvg": {
+            "type": "number",
+            "nullable": true,
+            "example": 4.3
+          },
+          "id": {
+            "type": "string"
+          },
+          "reviewCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "number",
+          "entrance",
+          "ratingAvg",
+          "id",
+          "reviewCount"
+        ]
+      },
+      "HouseReviewDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ReviewStatus"
+              }
+            ]
+          },
+          "rating": {
+            "type": "number",
+            "nullable": true,
+            "example": 4
+          },
+          "periodFrom": {
+            "type": "string",
+            "nullable": true,
+            "example": "2024-03"
+          },
+          "periodTo": {
+            "type": "string",
+            "nullable": true,
+            "example": "2025-04"
+          },
+          "apartmentNumber": {
+            "type": "string",
+            "example": "120"
+          },
+          "entrance": {
+            "type": "string",
+            "example": "7"
+          },
+          "id": {
+            "type": "string"
+          },
+          "authorName": {
+            "type": "string",
+            "description": "Никнейм автора"
+          },
+          "text": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Дата создания, ISO 8601"
+          },
+          "apartmentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "rating",
+          "periodFrom",
+          "periodTo",
+          "apartmentNumber",
+          "entrance",
+          "id",
+          "authorName",
+          "text",
+          "createdAt",
+          "apartmentId"
+        ]
+      },
+      "HousePageDto": {
+        "type": "object",
+        "properties": {
+          "citySlug": {
+            "type": "string",
+            "example": "moskva"
+          },
+          "cityName": {
+            "type": "string",
+            "example": "Москва"
+          },
+          "streetSlug": {
+            "type": "string",
+            "example": "tverskaya-ulica"
+          },
+          "streetName": {
+            "type": "string",
+            "example": "Тверская улица"
+          },
+          "houseSlug": {
+            "type": "string",
+            "example": "12"
+          },
+          "houseNumber": {
+            "type": "string",
+            "example": "12с17"
+          },
+          "ratingAvg": {
+            "type": "number",
+            "nullable": true,
+            "description": "Средняя оценка, округлённая до десятых; null — ни у одного отзыва нет оценки",
+            "example": 4.3
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true,
+            "description": "Дата последнего изменения отзывов, ISO 8601; из неё берётся lastmod в sitemap"
+          },
+          "apartments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HouseApartmentDto"
+            }
+          },
+          "reviews": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HouseReviewDto"
+            }
+          },
+          "id": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string",
+            "description": "Полный адрес от геокодера"
+          },
+          "lat": {
+            "type": "number"
+          },
+          "lon": {
+            "type": "number"
+          },
+          "reviewCount": {
+            "type": "number",
+            "description": "Подтверждённых отзывов по всему дому"
+          },
+          "ratingCount": {
+            "type": "number",
+            "description": "Отзывов с оценкой; в разметке это reviewCount у aggregateRating"
+          }
+        },
+        "required": [
+          "citySlug",
+          "cityName",
+          "streetSlug",
+          "streetName",
+          "houseSlug",
+          "houseNumber",
+          "ratingAvg",
+          "updatedAt",
+          "apartments",
+          "reviews",
+          "id",
+          "address",
+          "lat",
+          "lon",
+          "reviewCount",
+          "ratingCount"
         ]
       }
     }

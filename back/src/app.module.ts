@@ -12,6 +12,7 @@ import { AuthModule } from './auth/auth.module'
 import { CaptchaModule } from './captcha/captcha.module'
 import { HousesModule } from './houses/houses.module'
 import { ReviewsModule } from './reviews/reviews.module'
+import { CatalogModule } from './catalog/catalog.module'
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ReviewsModule } from './reviews/reviews.module'
     CaptchaModule,
     HousesModule,
     ReviewsModule,
+    CatalogModule,
   ],
   controllers: [HealthController],
 })

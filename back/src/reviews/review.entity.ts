@@ -3,6 +3,7 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
@@ -15,6 +16,9 @@ import { ReviewStatus } from './review-status'
 /** Отзыв о съёме конкретной квартиры */
 @Entity('reviews')
 @Check('"rating" IS NULL OR ("rating" BETWEEN 1 AND 5)')
+// Все публичные выборки — отзывы квартиры со статусом confirmed: и панель
+// квартиры, и страницы каталога, и sitemap
+@Index(['apartmentId', 'status'])
 export class Review {
   @PrimaryGeneratedColumn('uuid')
   id!: string
