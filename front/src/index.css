@@ -804,3 +804,176 @@ textarea {
     max-height: 55dvh;
   }
 }
+
+/* ── Страницы каталога ───────────────────────────────────────────────────────
+   В отличие от карты это обычный документ в потоке: его читают и человек,
+   и поисковый робот, поэтому никакого позиционирования поверх карты. */
+.page {
+  min-height: 100dvh;
+  background: var(--color-surface);
+}
+
+.page__top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.page__logo {
+  font-weight: 800;
+  font-size: 18px;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.page__crumbs {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.page__crumbs a {
+  color: var(--color-text-secondary);
+}
+
+.page__crumb-sep {
+  margin: 0 6px;
+}
+
+.page__body {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.page__body h1 {
+  font-size: 26px;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.page__body h2 {
+  font-size: 18px;
+  margin: 8px 0 0;
+}
+
+.page__summary {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.page__note {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.page__note.-error {
+  color: var(--color-pin);
+}
+
+.page__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.page__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  text-decoration: none;
+  color: inherit;
+}
+
+.page__row:hover {
+  background: var(--color-border);
+}
+
+.page__row-title {
+  font-weight: 600;
+}
+
+.page__row-meta {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+}
+
+.page__reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Подпись отзыва на странице дома: автор, квартира и дата в строку */
+.page__reviews .review-card__header {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+.review-card__place {
+  color: var(--color-text-secondary);
+}
+
+/* Кнопка-ссылка на странице: btn-secondary рассчитан на <button> */
+a.btn-secondary {
+  display: inline-block;
+  text-align: center;
+  text-decoration: none;
+}
+
+@media (max-width: 640px) {
+  .page__body {
+    padding: 16px;
+  }
+
+  .page__body h1 {
+    font-size: 22px;
+  }
+}
+
+/* Карта дома блоком на странице: грузится лениво, когда до неё долистали */
+.house-map__slot {
+  min-height: 260px;
+}
+
+.house-map {
+  position: relative;
+  height: 260px;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: var(--color-surface-muted);
+}
+
+.house-map.-stub {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  font-size: 14px;
+  padding: 16px;
+  text-align: center;
+}
+
+/* Отзыв, к которому привёл якорь из списка квартир */
+.page__reviews > div:target .review-card {
+  outline: 2px solid var(--color-primary);
+}

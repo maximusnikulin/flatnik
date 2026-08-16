@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import type { ApartmentSummary } from '@flatnik/shared'
+import type { ApartmentSummary, HouseSlugs } from '@flatnik/shared'
 import { houseByAddressQuery } from '../api/houses.api'
 import { groupByEntrance } from '../lib/group-by-entrance'
 import { ApartmentRow } from './ApartmentRow'
@@ -13,6 +13,8 @@ interface HousePanelProps {
   onSelectEntrance: (entrance: string) => void
   onBackToEntrances: () => void
   onSelectApartment: (apartment: ApartmentSummary) => void
+  /** Переход на публичную страницу дома со всеми его отзывами */
+  onOpenHousePage: (slug: HouseSlugs) => void
   onAddReview: () => void
 }
 
@@ -23,6 +25,7 @@ export function HousePanel({
   onSelectEntrance,
   onBackToEntrances,
   onSelectApartment,
+  onOpenHousePage,
   onAddReview,
 }: HousePanelProps) {
   const { data, isPending, error } = useQuery(houseByAddressQuery(address))
@@ -72,6 +75,18 @@ export function HousePanel({
         ) : (
           <p className="panel-note">В этом подъезде больше нет квартир с отзывами.</p>
         ))}
+
+      {/* Слаги приходят с бэкенда; их нет у домов с неразобранным адресом —
+          тогда публичной страницы просто не существует */}
+      {data?.house?.slug && entrances.length > 0 && (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => onOpenHousePage(data.house!.slug!)}
+        >
+          Все отзывы о доме
+        </button>
+      )}
 
       <button type="button" className="btn-primary" onClick={onAddReview}>
         Добавить отзыв

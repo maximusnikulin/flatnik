@@ -6,4 +6,5 @@ export const queryKeyRoots = {
   houses: ['houses'] as const,
   reviews: ['reviews'] as const,
   auth: ['auth'] as const,
+  catalog: ['catalog'] as const,
 }
