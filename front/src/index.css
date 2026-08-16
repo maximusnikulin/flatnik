@@ -977,3 +977,16 @@ a.btn-secondary {
 .page__reviews > div:target .review-card {
   outline: 2px solid var(--color-primary);
 }
+
+/* Действия над домом: «на карте» и «поделиться» в строку */
+.page__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Подпись меняется на подтверждение, поэтому ширина фиксируется по самой
+   длинной: иначе соседняя кнопка дёргалась бы при каждом нажатии */
+.share-button {
+  min-width: 200px;
+}

@@ -10,6 +10,7 @@ import { cityUrl, streetUrl } from '../shared/lib/house-url'
 import { useDocumentMeta } from '../shared/lib/use-document-meta'
 import { useInView } from '../shared/lib/use-in-view'
 import { RatingStars } from '../shared/ui/RatingStars'
+import { ShareButton } from '../shared/ui/ShareButton'
 import { NotFoundPage } from './NotFoundPage'
 import { PageShell, apartmentsWord, formatRating, reviewsWord } from './ui/PageShell'
 
@@ -77,18 +78,21 @@ export function HousePage() {
             {map.inView && <HouseMap lat={data.lat} lon={data.lon} address={data.address} />}
           </div>
 
-          <button
-            type="button"
-            className="btn-secondary"
-            onClick={() => {
-              // Данные для карты уже пришли с этой же страницы — второй запрос
-              // к геокодеру не нужен
-              selectAddress({ address: data.address, lat: data.lat, lon: data.lon })
-              navigate('/')
-            }}
-          >
-            Открыть на большой карте
-          </button>
+          <div className="page__actions">
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={() => {
+                // Данные для карты уже пришли с этой же страницы — второй запрос
+                // к геокодеру не нужен
+                selectAddress({ address: data.address, lat: data.lat, lon: data.lon })
+                navigate('/')
+              }}
+            >
+              Открыть на большой карте
+            </button>
+            <ShareButton title={`${title}, ${data.cityName} — отзывы жильцов`} />
+          </div>
 
           {data.apartments.length > 0 && (
             <>
