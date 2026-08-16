@@ -39,8 +39,10 @@ export function initMetrica(): void {
   document.head.append(script)
 
   window.ym(Number(counterId), 'init', {
-    // Переходы внутри приложения адрес не перезагружают, поэтому просмотры
-    // отправляются вручную из useMetricaPageview
+    // Все просмотры, включая первый, отправляет useMetricaPageview: переходы
+    // внутри приложения адрес не перезагружают, и Метрика насчитала бы один
+    // просмотр за сессию. Хит при инициализации здесь запрещён намеренно —
+    // иначе первый просмотр ушёл бы дважды.
     defer: true,
     clickmap: true,
     trackLinks: true,
@@ -49,11 +51,17 @@ export function initMetrica(): void {
   })
 }
 
-/** Просмотр страницы после перехода внутри приложения */
+// Последний отправленный адрес: единственный источник правды о том, что уже
+// посчитано. Раньше первый просмотр пропускался как «его считает init», но при
+// defer Метрика не считает ничего — и он терялся целиком.
+let lastTrackedUrl: string | null = null
+
+/** Просмотр страницы; повторный хит по тому же адресу подряд не отправляется */
 export function trackPageview(url: string): void {
-  if (!counterId || !window.ym) {
+  if (!counterId || !window.ym || url === lastTrackedUrl) {
     return
   }
+  lastTrackedUrl = url
   window.ym(Number(counterId), 'hit', url)
 }
 
