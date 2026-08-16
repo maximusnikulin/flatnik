@@ -43,6 +43,42 @@ export function renderCrumbs(crumbs: PageLink[]): string {
   return `<nav class="page__crumbs" aria-label="Хлебные крошки">${parts.join('')}</nav>`
 }
 
+/** Отзыв на странице дома: та же карточка, что рисует ReviewCard на клиенте */
+export function renderReview(review: {
+  authorName: string
+  apartmentNumber: string
+  entrance: string
+  createdAt: string
+  text: string
+  rating: number | null
+}): string {
+  const date = review.createdAt.slice(0, 10)
+  return `<article class="review-card">
+  <p class="review-card__status -confirmed">✓ Отзыв подтверждён</p>
+  <p class="review-card__header">
+    <span class="review-card__author">${escapeHtml(review.authorName)}</span>
+    <span class="review-card__place">кв. ${escapeHtml(review.apartmentNumber)}, подъезд ${escapeHtml(review.entrance)}</span>
+    <time datetime="${escapeAttr(review.createdAt)}">${escapeHtml(formatDate(date))}</time>
+  </p>
+  ${review.rating === null ? '' : `<span class="rating-stars">${stars(review.rating)}</span>`}
+  <p class="review-card__text">${escapeHtml(review.text)}</p>
+</article>`
+}
+
+/** '2024-03-12' → '12.03.24': тот же формат, что и в карточке на клиенте */
+function formatDate(iso: string): string {
+  const [year, month, day] = iso.split('-')
+  return `${day}.${month}.${year.slice(2)}`
+}
+
+function stars(rating: number): string {
+  return Array.from({ length: 5 }, (_, index) =>
+    index < rating
+      ? '<span class="rating-stars__star -on">★</span>'
+      : '<span class="rating-stars__star">★</span>',
+  ).join('')
+}
+
 /** Каркас страницы каталога — та же структура, что рисует PageShell на клиенте */
 export function renderPage(crumbs: PageLink[], body: string): string {
   return `<div class="page">
