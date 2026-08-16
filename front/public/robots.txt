@@ -1,0 +1,9 @@
+# Файлы из front/public vite копирует в корень сборки как есть.
+# Директиву Host не добавляем: Яндекс отказался от неё в 2018 году,
+# зеркала он определяет по редиректу, который держит edge-прокси.
+
+User-agent: *
+Disallow: /api/
+Allow: /
+
+Sitemap: https://flatnik.ru/sitemap.xml

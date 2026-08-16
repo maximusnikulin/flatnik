@@ -16,6 +16,14 @@ import type {
   StreetPageDto,
 } from './catalog.dto'
 
+/** Строка для sitemap: слаги дома и дата последнего изменения его отзывов */
+export interface SitemapEntry {
+  citySlug: string
+  streetSlug: string
+  houseSlug: string
+  lastmod: string
+}
+
 /** Размер страницы в списках улиц и домов */
 const PAGE_SIZE = 100
 
@@ -295,6 +303,29 @@ export class CatalogService {
         entrance: review.apartment.entrance,
       })),
     }
+  }
+
+  /**
+   * Дома для sitemap одним запросом: слаги и дата последнего изменения отзывов.
+   * Города и улицы собираются из этого же результата — отдельные запросы под
+   * них были бы теми же данными в другой группировке.
+   */
+  async listSitemapEntries(): Promise<SitemapEntry[]> {
+    const rows = await this.confirmedHouses()
+      .select('house.citySlug', 'citySlug')
+      .addSelect('house.streetSlug', 'streetSlug')
+      .addSelect('house.houseSlug', 'houseSlug')
+      .addSelect('MAX(review.updatedAt)', 'lastmod')
+      .groupBy('house.id')
+      .orderBy('MAX(review.updatedAt)', 'DESC')
+      .getRawMany<Omit<SitemapEntry, 'lastmod'> & { lastmod: Date }>()
+
+    return rows.map((row) => ({
+      citySlug: row.citySlug,
+      streetSlug: row.streetSlug,
+      houseSlug: row.houseSlug,
+      lastmod: row.lastmod.toISOString(),
+    }))
   }
 
   /**

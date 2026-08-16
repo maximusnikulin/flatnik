@@ -41,6 +41,14 @@ server {
         add_header X-Robots-Tag "noindex, nofollow" always;
     }
 
+    # Карта сайта: поисковики ищут её по этому адресу, а бэкенд весь под /api.
+    location = /sitemap.xml {
+        rewrite ^ /api/seo/sitemap.xml break;
+        proxy_pass http://back:${BACK_PORT};
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $fwd_proto;
+    }
+
     # Ассеты vite собирает с хешем в имени — можно кешировать навсегда.
     location /assets/ {
         expires 1y;

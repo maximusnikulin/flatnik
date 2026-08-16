@@ -42,6 +42,24 @@ server {
         add_header X-Robots-Tag "noindex, nofollow" always;
     }
 
+    # Карта сайта: поисковики ищут её по этому адресу, а бэкенд весь под /api.
+    location = /sitemap.xml {
+        set $sitemap_upstream http://back:${BACK_PORT}/api/seo/sitemap.xml;
+        proxy_pass $sitemap_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # Файлы из front/public (robots.txt, favicon, og-картинка). Из адресной
+    # строки их запрашивают с Accept: text/html, и без этого правила они ушли бы
+    # в серверный рендер. В production их раньше всех находит try_files.
+    location ~* \.(txt|xml|svg|png|jpg|jpeg|ico|webmanifest)$ {
+        set $static_upstream http://front:${FRONT_PORT};
+        proxy_pass $static_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Всё остальное — vite dev server вместе с его HMR-сокетом. Отдельный порт
     # для HMR не нужен: клиент vite стучится в origin страницы, то есть сюда же.
     location / {
