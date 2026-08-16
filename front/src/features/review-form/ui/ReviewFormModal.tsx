@@ -5,7 +5,9 @@ import { useCreateReviewMutation } from '../api/create-review'
 import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { EgrnInput } from '../../../shared/ui/EgrnInput'
+import { MonthInput } from '../../../shared/ui/MonthInput'
 import { RatingInput } from '../../../shared/ui/RatingInput'
+import { MIN_MONTH, currentMonth } from '../../../shared/lib/month'
 
 /** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
 const TEXT_MAX_LENGTH = 500
@@ -109,6 +111,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
   }
 
   const isBusy = captcha.isRunning || mutation.isPending || form.rating === null
+  const maxMonth = currentMonth()
 
   return (
     <div className="modal-overlay" onClick={form.close}>
@@ -156,17 +159,21 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
             {/* Месяц и год: точный день съезда никто не помнит, а лишняя
                 точность в публичном отзыве только помогает опознать жильца */}
             <div className="field-row">
-              <input
-                type="month"
+              {/* Правило «конец не раньше начала» выражено границами полей:
+                  так его проверяет сама форма, ещё до отправки на сервер */}
+              <MonthInput
                 value={form.periodFrom}
-                onChange={(event) => form.setField('periodFrom', event.target.value)}
+                onChange={(month) => form.setField('periodFrom', month)}
+                min={MIN_MONTH}
+                max={form.periodTo || maxMonth}
                 aria-label="Начало периода съёма"
               />
               <span className="field-row__dash">—</span>
-              <input
-                type="month"
+              <MonthInput
                 value={form.periodTo}
-                onChange={(event) => form.setField('periodTo', event.target.value)}
+                onChange={(month) => form.setField('periodTo', month)}
+                min={form.periodFrom || MIN_MONTH}
+                max={maxMonth}
                 aria-label="Конец периода съёма"
               />
             </div>

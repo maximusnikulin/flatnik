@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Review } from '@flatnik/shared'
 import { RatingStars } from '../../../shared/ui/RatingStars'
+import { formatMonth } from '../../../shared/lib/month'
 
 /** Свыше этого порога текст сворачивается кнопкой «Раскрыть» */
 const COLLAPSE_THRESHOLD = 200
@@ -10,12 +11,6 @@ const COLLAPSE_THRESHOLD = 200
 export function formatDate(iso: string): string {
   const [year, month, day] = iso.slice(0, 10).split('-')
   return `${day}.${month}.${year.slice(2)}`
-}
-
-/** '2024-03' → '03.2024'; период съёма хранится с точностью до месяца */
-function formatMonth(iso: string): string {
-  const [year, month] = iso.split('-')
-  return `${month}.${year}`
 }
 
 function formatPeriod(review: ReviewCardData): string | null {

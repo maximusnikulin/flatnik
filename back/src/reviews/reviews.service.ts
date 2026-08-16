@@ -33,6 +33,38 @@ function toMonth(stored: string | null): string | null {
   return stored ? stored.slice(0, 7) : null
 }
 
+/** Раньше этого месяца период не принимаем: почти наверняка опечатка в годе */
+const MIN_MONTH = '1990-01'
+
+/** Текущий месяц — верхняя граница: отзыв о съёме в будущем смысла не имеет */
+function currentMonth(): string {
+  const now = new Date()
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
+
+/**
+ * Границы и порядок концов периода. Формат «ГГГГ-ММ» уже гарантирован @Matches
+ * в DTO, поэтому месяцы можно сравнивать как строки — лексикографический
+ * порядок здесь совпадает с хронологическим. Те же правила проверяет форма
+ * на клиенте; тут они на случай запроса мимо неё.
+ */
+function assertPeriod(periodFrom?: string, periodTo?: string): void {
+  if (periodFrom && periodTo && periodFrom > periodTo) {
+    throw new BadRequestException('Начало периода съёма позже его конца')
+  }
+
+  const max = currentMonth()
+  for (const month of [periodFrom, periodTo]) {
+    if (!month) continue
+    if (month < MIN_MONTH) {
+      throw new BadRequestException('Период съёма не может быть раньше 01.1990')
+    }
+    if (month > max) {
+      throw new BadRequestException('Период съёма не может быть позже текущего месяца')
+    }
+  }
+}
+
 @Injectable()
 export class ReviewsService {
   constructor(
@@ -46,9 +78,7 @@ export class ReviewsService {
 
   /** Создаёт отзыв, заводя дом и квартиру при необходимости */
   async create(userId: string, dto: CreateReviewDto, ip?: string): Promise<ReviewCreatedDto> {
-    if (dto.periodFrom && dto.periodTo && dto.periodFrom > dto.periodTo) {
-      throw new BadRequestException('Начало периода съёма позже его конца')
-    }
+    assertPeriod(dto.periodFrom, dto.periodTo)
 
     // Сетевой вызов — до транзакции, чтобы не держать соединение с БД
     await this.captchaService.validate(dto.captchaToken, ip)
@@ -104,9 +134,7 @@ export class ReviewsService {
     dto: UpdateReviewDto,
     ip?: string,
   ): Promise<MyReviewDto> {
-    if (dto.periodFrom && dto.periodTo && dto.periodFrom > dto.periodTo) {
-      throw new BadRequestException('Начало периода съёма позже его конца')
-    }
+    assertPeriod(dto.periodFrom, dto.periodTo)
 
     const review = await this.reviews.findOne({
       where: { id: reviewId, authorId: userId },
