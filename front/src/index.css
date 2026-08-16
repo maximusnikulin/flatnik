@@ -978,8 +978,9 @@ a.btn-secondary {
   outline: 2px solid var(--color-primary);
 }
 
-/* Действия над домом: «на карте» и «поделиться» в строку */
-.page__actions {
+/* Действия над домом в строку — на странице дома и в панели на карте */
+.page__actions,
+.panel-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;

@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import type { ApartmentSummary, HouseSlugs } from '@flatnik/shared'
 import { houseByAddressQuery } from '../api/houses.api'
+import { houseUrl } from '../../../shared/lib/house-url'
+import { ShareButton } from '../../../shared/ui/ShareButton'
 import { groupByEntrance } from '../lib/group-by-entrance'
 import { ApartmentRow } from './ApartmentRow'
 import { EntranceRow } from './EntranceRow'
@@ -77,15 +79,20 @@ export function HousePanel({
         ))}
 
       {/* Слаги приходят с бэкенда; их нет у домов с неразобранным адресом —
-          тогда публичной страницы просто не существует */}
+          тогда публичной страницы просто не существует, и делиться нечем */}
       {data?.house?.slug && entrances.length > 0 && (
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => onOpenHousePage(data.house!.slug!)}
-        >
-          Все отзывы о доме
-        </button>
+        <div className="panel-actions">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() => onOpenHousePage(data.house!.slug!)}
+          >
+            Все отзывы о доме
+          </button>
+          {/* Путь задан явно: на карте в адресной строке всегда «/», и без него
+              кнопка поделилась бы главной вместо этого дома */}
+          <ShareButton title={`${address} — отзывы жильцов`} path={houseUrl(data.house.slug)} />
+        </div>
       )}
 
       <button type="button" className="btn-primary" onClick={onAddReview}>

@@ -8,16 +8,21 @@ type Status = 'idle' | 'copied' | 'error'
 interface ShareButtonProps {
   /** Заголовок для штатного меню шаринга */
   title: string
+  /**
+   * Чем делимся; по умолчанию — текущая страница. На карте адрес строки всегда
+   * «/», поэтому там путь до дома передаётся явно.
+   */
+  path?: string
 }
 
 /**
- * «Поделиться» ссылкой на текущую страницу.
+ * «Поделиться» ссылкой на страницу дома.
  *
- * Копируется не window.location.href, а origin с путём: query и якорь квартиры
- * (#kv-…) в пересылаемой ссылке не нужны, а канонический адрес страницы именно
- * такой — тот же, что стоит в canonical.
+ * Ссылка всегда собирается из origin и пути, без query и без якоря квартиры
+ * (#kv-…): получателю нужна страница дома, а не чужая квартира на ней. Это тот
+ * же адрес, что стоит в canonical.
  */
-export function ShareButton({ title }: ShareButtonProps) {
+export function ShareButton({ title, path }: ShareButtonProps) {
   const [status, setStatus] = useState<Status>('idle')
   const timer = useRef<number | null>(null)
 
@@ -35,7 +40,7 @@ export function ShareButton({ title }: ShareButtonProps) {
   }
 
   const handleClick = async () => {
-    const url = `${window.location.origin}${window.location.pathname}`
+    const url = `${window.location.origin}${path ?? window.location.pathname}`
 
     // navigator.share вызывается первым и без предшествующего await: браузер
     // разрешает его только внутри пользовательского жеста
