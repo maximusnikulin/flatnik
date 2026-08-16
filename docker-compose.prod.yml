@@ -98,6 +98,7 @@ services:
         # а не в environment рантайма.
         VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
         VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
+        VITE_YANDEX_METRICA_ID: ${VITE_YANDEX_METRICA_ID:-}
     volumes:
       - front-dist:/srv/static
     restart: "no"

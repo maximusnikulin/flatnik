@@ -17,8 +17,10 @@ COPY front ./front
 # build-аргами (см. args в docker-compose.yml), а не переменными рантайма.
 ARG VITE_YANDEX_MAPS_API_KEY
 ARG VITE_SMARTCAPTCHA_CLIENT_KEY
+ARG VITE_YANDEX_METRICA_ID
 ENV VITE_YANDEX_MAPS_API_KEY=$VITE_YANDEX_MAPS_API_KEY \
-    VITE_SMARTCAPTCHA_CLIENT_KEY=$VITE_SMARTCAPTCHA_CLIENT_KEY
+    VITE_SMARTCAPTCHA_CLIENT_KEY=$VITE_SMARTCAPTCHA_CLIENT_KEY \
+    VITE_YANDEX_METRICA_ID=$VITE_YANDEX_METRICA_ID
 
 RUN npm run build --workspace=@flatnik/shared \
  && npm run build --workspace=@flatnik/front

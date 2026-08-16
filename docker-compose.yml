@@ -114,6 +114,7 @@ services:
       # а не build-args, как в production-образе.
       VITE_YANDEX_MAPS_API_KEY: ${VITE_YANDEX_MAPS_API_KEY:-}
       VITE_SMARTCAPTCHA_CLIENT_KEY: ${VITE_SMARTCAPTCHA_CLIENT_KEY:-}
+      VITE_YANDEX_METRICA_ID: ${VITE_YANDEX_METRICA_ID:-}
     volumes: *node-volumes
     # Healthcheck'а нет намеренно: vite отвечает 403 на незнакомый Host,
     # и проверка легко стала бы источником ложного unhealthy.
