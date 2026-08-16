@@ -77,6 +77,9 @@ services:
       SMSAERO_SIGN: ${SMSAERO_SIGN:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MODERATOR_CHAT_ID: ${TELEGRAM_MODERATOR_CHAT_ID:-}
+      # В разработке шаблон берётся у vite: он добавляет в HTML свой клиент и
+      # обновления, которых в собранном index.html нет
+      SEO_INDEX_HTML: http://front:${FRONT_PORT:-5173}/
     volumes: *node-volumes
     depends_on:
       db:

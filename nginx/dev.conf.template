@@ -9,6 +9,15 @@ map $http_upgrade $connection_upgrade {
     ''      close;
 }
 
+# Навигационные запросы отличаем по Accept. В dev файлов на диске нет — всё
+# отдаёт vite, — поэтому приём из prod-шаблона (try_files и фоллбэк) здесь не
+# работает: страницу от запроса модуля можно отделить только по заголовку.
+# Браузер просит text/html при переходе, а модули и fetch — */*.
+map $http_accept $wants_html {
+    default     0;
+    ~*text/html 1;
+}
+
 server {
     listen 80;
     server_name _;
@@ -30,12 +39,25 @@ server {
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        add_header X-Robots-Tag "noindex, nofollow" always;
     }
 
     # Всё остальное — vite dev server вместе с его HMR-сокетом. Отдельный порт
     # для HMR не нужен: клиент vite стучится в origin страницы, то есть сюда же.
     location / {
         set $front_upstream http://front:${FRONT_PORT};
+
+        # Страницу собирает бэкенд — тот же путь, что и в production. Шаблон он
+        # берёт у vite, поэтому клиент разработки и обновления остаются на месте.
+        if ($wants_html) {
+            proxy_pass http://back:${BACK_PORT}/api/seo/page$request_uri;
+        }
+
+        # Бэкенд лёг — отдаём страницу как обычную SPA, а не 502. Код 404 не
+        # перехватываем: несуществующий дом обязан остаться настоящей ошибкой.
+        proxy_intercept_errors on;
+        error_page 500 502 503 504 = @vite;
+
         proxy_pass $front_upstream;
         proxy_http_version 1.1;
         proxy_set_header Upgrade $http_upgrade;
@@ -49,5 +71,13 @@ server {
         proxy_send_timeout 1d;
         # Ответы vite отдаём как есть: буферизация ломает поток обновлений.
         proxy_buffering off;
+    }
+
+    # Запасной путь для страниц, когда серверный рендер недоступен.
+    location @vite {
+        set $front_fallback http://front:${FRONT_PORT};
+        proxy_pass $front_fallback;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
     }
 }

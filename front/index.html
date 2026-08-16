@@ -3,10 +3,23 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>flatnik</title>
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>flatnik — отзывы жильцов о съёмных квартирах</title>
+    <meta
+      name="description"
+      content="Отзывы о съёмных квартирах в Москве и Санкт-Петербурге: дом, подъезд, квартира и опыт бывших жильцов."
+    />
+    <!--
+      Метки для серверного рендера: в них бэкенд подставляет мету страницы и её
+      разметку (back/src/seo/render.service.ts). Заголовок и описание выше он
+      заменяет, а не дополняет: два заголовка на странице поисковик разрешает в
+      пользу первого, то есть общего для всего сайта. Удалять метки нельзя —
+      без них рендер уходит в запасные точки вставки, а это уже угадывание.
+    -->
+    <!--seo-head-->
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root"><!--seo-body--></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

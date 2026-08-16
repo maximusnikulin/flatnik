@@ -56,6 +56,17 @@ services:
       SMSAERO_SIGN: ${SMSAERO_SIGN:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MODERATOR_CHAT_ID: ${TELEGRAM_MODERATOR_CHAT_ID:-}
+      SEO_INDEX_HTML: /srv/static/index.html
+      # /api/docs наружу не отдаём: документация API — не публичная страница
+      SWAGGER_UI: ${SWAGGER_UI:-off}
+    volumes:
+      # Только чтение: бэкенд берёт отсюда шаблон index.html, чтобы подставить
+      # в него мету и тексты. Том наполняет сервис front, back в него не пишет.
+      #
+      # depends_on на front здесь намеренно нет: он одноразовый, и ожидание его
+      # успеха связало бы старт API со сборкой фронта. Пока файла нет, страницы
+      # отдаёт гейтвей своим фоллбэком.
+      - front-dist:/srv/static:ro
     depends_on:
       db:
         condition: service_healthy

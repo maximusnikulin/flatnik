@@ -6,6 +6,7 @@ import { authConfig } from './config/auth.config'
 import { captchaConfig } from './config/captcha.config'
 import { smsConfig } from './config/sms.config'
 import { telegramConfig } from './config/telegram.config'
+import { seoConfig } from './config/seo.config'
 import { DatabaseModule } from './database/database.module'
 import { UsersModule } from './users/users.module'
 import { AuthModule } from './auth/auth.module'
@@ -13,6 +14,7 @@ import { CaptchaModule } from './captcha/captcha.module'
 import { HousesModule } from './houses/houses.module'
 import { ReviewsModule } from './reviews/reviews.module'
 import { CatalogModule } from './catalog/catalog.module'
+import { SeoModule } from './seo/seo.module'
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { CatalogModule } from './catalog/catalog.module'
     // потому что npm-скрипты воркспейса запускаются с cwd = back/
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, authConfig, captchaConfig, smsConfig, telegramConfig],
+      load: [databaseConfig, authConfig, captchaConfig, smsConfig, telegramConfig, seoConfig],
       envFilePath: ['.env', '../.env'],
     }),
     DatabaseModule,
@@ -30,6 +32,7 @@ import { CatalogModule } from './catalog/catalog.module'
     HousesModule,
     ReviewsModule,
     CatalogModule,
+    SeoModule,
   ],
   controllers: [HealthController],
 })

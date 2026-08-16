@@ -89,7 +89,9 @@ dev-дефолты, поэтому без `.env` тоже заведётся.
 | `VITE_YANDEX_MAPS_API_KEY` | ключ Яндекс Карт — карта, Geocoder и Suggest; пусто — вместо карты заглушка |
 | `SMSAERO_EMAIL`, `SMSAERO_API_KEY` | доступы к SMS Aero (логин и ключ, HTTP Basic); пусто — провайдер не вызывается, код виден в логе, а в production бэкенд не стартует |
 | `SMSAERO_SIGN` | своё имя отправителя SMS; заданное — включает каскад «не дошло в Telegram → SMS», пусто — только Telegram (в mobile-id подставляется бесплатное имя) |
-| `PUBLIC_URL` | адрес сайта наружу; из него собирается `callbackUrl` для mobile-id (по умолчанию `https://flatnik.ru`) |
+| `PUBLIC_URL` | адрес сайта наружу; из него собираются `callbackUrl` для mobile-id и `canonical`/`og:url` публичных страниц (по умолчанию `https://flatnik.ru`) |
+| `SEO_INDEX_HTML` | откуда серверный рендер берёт шаблон `index.html`: файл из тома со сборкой (production) или адрес vite (разработка); задано в обоих compose-файлах |
+| `SWAGGER_UI` | `off` выключает Swagger UI на `/api/docs`; в production выключен |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_MODERATOR_CHAT_ID` | бот модерации и чат модератора; пусто — бот не запускается, отзывы остаются в `pending` |
 
 ### Ключи Яндекса
