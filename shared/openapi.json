@@ -605,8 +605,8 @@
     }
   },
   "info": {
-    "title": "flatnik API",
-    "description": "HTTP-контракт бэкенда flatnik",
+    "title": "API Квартирника",
+    "description": "HTTP-контракт бэкенда Квартирника",
     "version": "0.0.0",
     "contact": {}
   },

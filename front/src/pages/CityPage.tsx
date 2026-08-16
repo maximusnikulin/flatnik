@@ -16,7 +16,7 @@ export function CityPage() {
   const cityName = data?.cityName ?? citySlug
   const inCity = cityIn(cityName)
   useDocumentMeta({
-    title: `Отзывы о съёмных квартирах в ${inCity} — flatnik`,
+    title: `Отзывы о съёмных квартирах в ${inCity} — Квартирник`,
     description: data
       ? `${data.reviewCount} ${reviewsWord(data.reviewCount)} от бывших жильцов по ${data.streetCount} ${streetsWord(data.streetCount)} города ${cityName}.`
       : `Отзывы жильцов о съёмных квартирах в городе ${cityName}.`,

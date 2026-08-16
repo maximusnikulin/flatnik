@@ -205,7 +205,7 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     if (command === '/start') {
       await this.telegram.sendMessage(
         this.telegram.moderatorChatId,
-        'Бот модерации flatnik. Новые отзывы приходят сюда сами, /pending — те, что ждут решения.',
+        'Бот модерации Квартирника. Новые отзывы приходят сюда сами, /pending — те, что ждут решения.',
       )
     }
   }

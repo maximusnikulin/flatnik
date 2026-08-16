@@ -53,7 +53,7 @@ ${renderList(
 
     return this.renderService.render(
       {
-        title: 'flatnik — отзывы жильцов о съёмных квартирах',
+        title: 'Квартирник — отзывы жильцов о съёмных квартирах',
         description:
           'Карта отзывов о съёмных квартирах в Москве и Санкт-Петербурге: дом, подъезд, квартира и опыт бывших жильцов.',
         canonicalPath: '/',
@@ -61,7 +61,7 @@ ${renderList(
           {
             '@context': 'https://schema.org',
             '@type': 'WebSite',
-            name: 'flatnik',
+            name: 'Квартирник',
             url: this.renderService.absoluteUrl('/'),
           },
         ],
@@ -103,7 +103,7 @@ ${renderList(items)}`,
 
     return this.renderService.render(
       {
-        title: `Отзывы о съёмных квартирах в ${cityIn(city.cityName)} — flatnik`,
+        title: `Отзывы о съёмных квартирах в ${cityIn(city.cityName)} — Квартирник`,
         description: `${city.reviewCount} ${reviewsWord(city.reviewCount)} от бывших жильцов по ${city.streetCount} ${streetsWord(city.streetCount)} города ${city.cityName}.`,
         canonicalPath: path,
         jsonLd: [
@@ -275,7 +275,7 @@ ${house.reviews.map((review) => renderReview(review)).join('\n')}
 
     return this.renderService.render(
       {
-        title: `${title} — flatnik`,
+        title: `${title} — Квартирник`,
         description: 'Такой страницы нет. Выберите город и найдите дом на карте отзывов.',
         canonicalPath: '/',
         noindex: true,

@@ -54,7 +54,7 @@ export function MapPage() {
   const [submittedApartmentId, setSubmittedApartmentId] = useState<string | null>(null)
 
   useDocumentMeta({
-    title: 'flatnik — отзывы жильцов о съёмных квартирах',
+    title: 'Квартирник — отзывы жильцов о съёмных квартирах',
     description:
       'Карта отзывов о съёмных квартирах в Москве и Санкт-Петербурге: дом, подъезд, квартира и опыт бывших жильцов.',
     canonicalPath: '/',

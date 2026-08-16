@@ -13,7 +13,7 @@ export function NotFoundPage() {
   const { data } = useQuery(citiesQuery())
 
   useDocumentMeta({
-    title: 'Страница не найдена — flatnik',
+    title: 'Страница не найдена — Квартирник',
     description: 'Такой страницы нет. Выберите город и найдите дом на карте отзывов.',
     canonicalPath: '/',
     noindex: true,

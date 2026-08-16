@@ -8,8 +8,8 @@ import type { OpenAPIObject } from '@nestjs/swagger'
  */
 export function buildOpenApiDocument(app: INestApplication): OpenAPIObject {
   const config = new DocumentBuilder()
-    .setTitle('flatnik API')
-    .setDescription('HTTP-контракт бэкенда flatnik')
+    .setTitle('API Квартирника')
+    .setDescription('HTTP-контракт бэкенда Квартирника')
     .setVersion('0.0.0')
     .addBearerAuth()
     .build()

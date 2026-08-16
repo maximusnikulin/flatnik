@@ -107,8 +107,13 @@ export class AuthService {
       code = String(100_000 + Math.floor(Math.random() * 900_000))
       if (this.smsService.isEnabled) {
         // Текст — для каскадной SMS, если код не доставили в Telegram. Источник
-        // в нём обязателен, пока имя отправителя не своё, а бесплатное
-        await this.smsService.sendCode(phone, code, `Код для входа на flatnik.ru: ${code}`)
+        // в нём обязателен, пока имя отправителя не своё, а бесплатное, поэтому
+        // домен остаётся в скобках рядом с названием сервиса
+        await this.smsService.sendCode(
+          phone,
+          code,
+          `Код для входа на Квартирник (flatnik.ru): ${code}`,
+        )
       } else {
         this.logger.warn(`Доступы SMS Aero не заданы — код для ${phone}: ${code}`)
       }

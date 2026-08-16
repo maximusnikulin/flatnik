@@ -72,7 +72,7 @@ export class RenderService {
     const tags = [
       `<link rel="canonical" href="${escapeAttr(url)}" />`,
       `<meta property="og:type" content="website" />`,
-      `<meta property="og:site_name" content="flatnik" />`,
+      `<meta property="og:site_name" content="Квартирник" />`,
       `<meta property="og:locale" content="ru_RU" />`,
       `<meta property="og:title" content="${escapeAttr(meta.title)}" />`,
       `<meta property="og:description" content="${escapeAttr(meta.description)}" />`,

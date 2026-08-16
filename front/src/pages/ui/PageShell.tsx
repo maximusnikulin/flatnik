@@ -16,6 +16,12 @@ export function PageShell({ crumbs, children }: { crumbs: Crumb[]; children: Rea
   return (
     <div className="page">
       <header className="page__top">
+        {/* Тот же логотип, что рисует renderPage на сервере: без него название
+            сервиса пропадало из шапки, как только клиент заменял серверный
+            рендер своим */}
+        <Link className="page__logo" to="/">
+          Квартирник
+        </Link>
         {/* Крошки — настоящие ссылки: по ним ходит и человек, и поисковый робот */}
         <nav className="page__crumbs" aria-label="Хлебные крошки">
           {crumbs.map((crumb, index) => (
