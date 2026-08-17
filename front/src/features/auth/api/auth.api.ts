@@ -2,11 +2,13 @@ import { queryOptions, useMutation, useQueryClient, type QueryClient } from '@ta
 import type {
   AuthResponse,
   CurrentUser,
+  EmailRequest,
   RequestCodeRequest,
   RequestCodeResponse,
   SessionStatus,
   SetNicknameRequest,
   VerifyCodeRequest,
+  VerifyEmailRequest,
 } from '@flatnik/shared'
 import { api } from '../../../shared/api/fetcher'
 import { queryKeyRoots } from '../../../shared/api/keys'
@@ -15,7 +17,7 @@ import { useAuthStore } from '../model/auth.store'
 export const authKeys = {
   all: queryKeyRoots.auth,
   me: () => [...queryKeyRoots.auth, 'me'] as const,
-  session: (phone: string) => [...queryKeyRoots.auth, 'session', phone] as const,
+  session: (login: string) => [...queryKeyRoots.auth, 'session', login] as const,
 }
 
 /** Как часто спрашиваем, подтвердил ли человек вход на телефоне */
@@ -85,10 +87,10 @@ export function useRequestCodeMutation() {
  * рядом с запросом, а не в компоненте: опрос прекращается по самому ответу,
  * и разносить эти два условия незачем.
  */
-export const authSessionQuery = (phone: string, sessionId: string, enabled: boolean) =>
+export const authSessionQuery = (login: string, sessionId: string, enabled: boolean) =>
   queryOptions({
-    queryKey: authKeys.session(phone),
-    queryFn: () => api.post<SessionStatus>('/api/auth/session', { phone, sessionId }),
+    queryKey: authKeys.session(login),
+    queryFn: () => api.post<SessionStatus>('/api/auth/session', { login, sessionId }),
     enabled,
     refetchInterval: (query) => (query.state.data?.status === 'pending' ? SESSION_POLL_MS : false),
     // Ответ живёт ровно одну попытку входа: между попытками он бесполезен,
@@ -131,6 +133,29 @@ export function useAcceptConsentMutation() {
     onSuccess: (user) => {
       queryClient.setQueryData(authKeys.me(), user)
     },
+  })
+}
+
+/**
+ * Прислать код подтверждения почты уже вошедшему человеку. Нужен в форме
+ * отзыва: на подтверждённую почту уходит решение модератора. 409 — почта
+ * занята другим аккаунтом.
+ */
+export function useRequestEmailCodeMutation() {
+  return useMutation({
+    mutationFn: (body: EmailRequest) => api.post<void>('/api/auth/me/email/request-code', body),
+  })
+}
+
+/** Подтвердить почту кодом из письма; в ответе — обновлённый профиль */
+export function useVerifyEmailMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (body: VerifyEmailRequest) =>
+      api.post<CurrentUser>('/api/auth/me/email/verify', body),
+    // Профиль кладём в кеш сразу: по нему форма отзыва понимает, что почта
+    // появилась, и убирает шаг подтверждения
+    onSuccess: (user) => queryClient.setQueryData(authKeys.me(), user),
   })
 }
 

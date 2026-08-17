@@ -148,6 +148,43 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/me/email/request-code": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Прислать код подтверждения почты уже вошедшему человеку. Нужен потому, что
+         *     отзыв подписывается почтой: на неё уходит решение модератора.
+         */
+        post: operations["AuthController_requestEmailCode"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/auth/me/email/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Подтвердить почту кодом из письма и привязать её к аккаунту */
+        post: operations["AuthController_verifyEmail"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/me/nickname": {
         parameters: {
             query?: never;
@@ -365,10 +402,12 @@ export interface components {
         };
         RequestCodeDto: {
             /**
-             * @description Телефон в российском формате; номера других стран не обслуживаем
+             * @description Телефон в российском формате или адрес почты — вход принимает и то и другое,
+             *     что именно, сервер решает по наличию собачки. Регэксп покрывает обе формы
+             *     сразу: разбить на два поля значило бы заставить фронт угадывать до отправки.
              * @example +79991234567
              */
-            phone: string;
+            login: string;
             /**
              * @description Токен SmartCaptcha. Опционален в схеме, потому что в разработке ключей может
              *     не быть; когда серверный ключ задан, отсутствие токена даёт 400 в CaptchaService.
@@ -386,10 +425,12 @@ export interface components {
         };
         SessionPollDto: {
             /**
-             * @description Телефон в российском формате; номера других стран не обслуживаем
+             * @description Телефон в российском формате или адрес почты — вход принимает и то и другое,
+             *     что именно, сервер решает по наличию собачки. Регэксп покрывает обе формы
+             *     сразу: разбить на два поля значило бы заставить фронт угадывать до отправки.
              * @example +79991234567
              */
-            phone: string;
+            login: string;
             /**
              * @description Секрет, выданный при запросе входа: без него статус чужого номера не опросить
              * @example 3f2a9c1d4b5e6f708192a3b4c5d6e7f8
@@ -398,10 +439,16 @@ export interface components {
         };
         UserDto: {
             /**
-             * @description Телефон, на который выдан токен
+             * @description Телефон, если входили по нему; иначе null
              * @example +79991234567
              */
-            phone: string;
+            phone: string | null;
+            /**
+             * @description Подтверждённая почта; null — ещё не привязана. На неё уходит решение
+             *     модератора, поэтому без неё отзыв оставить нельзя.
+             * @example me@example.com
+             */
+            email: string | null;
             /**
              * @description Публичный ник; им подписаны отзывы
              * @example maxim_n
@@ -439,10 +486,12 @@ export interface components {
         };
         VerifyCodeDto: {
             /**
-             * @description Телефон в российском формате; номера других стран не обслуживаем
+             * @description Телефон в российском формате или адрес почты — вход принимает и то и другое,
+             *     что именно, сервер решает по наличию собачки. Регэксп покрывает обе формы
+             *     сразу: разбить на два поля значило бы заставить фронт угадывать до отправки.
              * @example +79991234567
              */
-            phone: string;
+            login: string;
             /**
              * @description Код из SMS. Длина не фиксирована: код выдаёт провайдер, и в тестовом режиме
              *     он четырёхзначный (1234), а в боевом может быть длиннее.
@@ -455,6 +504,19 @@ export interface components {
             accessToken: string;
             /** @description Профиль вошедшего пользователя */
             user: components["schemas"]["UserDto"];
+        };
+        EmailDto: {
+            /** @example me@example.com */
+            email: string;
+        };
+        VerifyEmailDto: {
+            /** @example me@example.com */
+            email: string;
+            /**
+             * @description Код из письма; свой, шестизначный — в отличие от кода провайдера
+             * @example 123456
+             */
+            code: string;
         };
         SetNicknameDto: {
             /**
@@ -959,6 +1021,72 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+        };
+    };
+    AuthController_requestEmailCode: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EmailDto"];
+            };
+        };
+        responses: {
+            /** @description Код отправлен на указанную почту */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Почта уже используется другим аккаунтом */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Код на эту почту запрошен меньше минуты назад */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Не удалось отправить письмо */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthController_verifyEmail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["VerifyEmailDto"];
+            };
+        };
+        responses: {
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -966,6 +1094,20 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["UserDto"];
                 };
+            };
+            /** @description Неверный, истёкший код или исчерпаны попытки */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Почта уже используется другим аккаунтом */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

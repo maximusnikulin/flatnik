@@ -8,7 +8,7 @@ export type Schemas = components['schemas']
 export type HealthResponse = Schemas['HealthResponseDto']
 export type HealthStatus = HealthResponse['status']
 
-// Авторизация по телефону
+// Авторизация: телефон или почта, поле входа одно
 export type RequestCodeRequest = Schemas['RequestCodeDto']
 export type RequestCodeResponse = Schemas['RequestCodeResponseDto']
 export type SessionPollRequest = Schemas['SessionPollDto']
@@ -17,6 +17,9 @@ export type VerifyCodeRequest = Schemas['VerifyCodeDto']
 export type AuthResponse = Schemas['AuthResponseDto']
 export type CurrentUser = Schemas['UserDto']
 export type SetNicknameRequest = Schemas['SetNicknameDto']
+// Привязка почты к уже вошедшему аккаунту: на неё уходит решение модератора
+export type EmailRequest = Schemas['EmailDto']
+export type VerifyEmailRequest = Schemas['VerifyEmailDto']
 
 // Дома и квартиры
 export type HousePin = Schemas['HousePinDto']

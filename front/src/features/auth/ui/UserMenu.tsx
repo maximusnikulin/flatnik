@@ -44,7 +44,9 @@ export function UserMenu({ onOpenMyReviews }: UserMenuProps) {
 
   return (
     <div className="user-menu">
-      <span className="user-menu__nickname" title={me.data.phone}>
+      {/* В подсказке — то, чем вошли: телефон, почта или ничего, если ни того
+          ни другого ещё нет (аккаунт всегда заведён чем-то одним) */}
+      <span className="user-menu__nickname" title={me.data.phone ?? me.data.email ?? undefined}>
         {me.data.nickname}
       </span>
       <button type="button" className="btn-link" onClick={onOpenMyReviews}>

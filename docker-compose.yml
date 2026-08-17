@@ -75,6 +75,12 @@ services:
       SMSAERO_EMAIL: ${SMSAERO_EMAIL:-}
       SMSAERO_API_KEY: ${SMSAERO_API_KEY:-}
       SMSAERO_SIGN: ${SMSAERO_SIGN:-}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MODERATOR_CHAT_ID: ${TELEGRAM_MODERATOR_CHAT_ID:-}
       # В разработке шаблон берётся у vite: он добавляет в HTML свой клиент и

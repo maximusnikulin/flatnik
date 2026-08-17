@@ -5,6 +5,7 @@ import { databaseConfig } from './config/database.config'
 import { authConfig } from './config/auth.config'
 import { captchaConfig } from './config/captcha.config'
 import { smsConfig } from './config/sms.config'
+import { mailConfig } from './config/mail.config'
 import { telegramConfig } from './config/telegram.config'
 import { seoConfig } from './config/seo.config'
 import { DatabaseModule } from './database/database.module'
@@ -22,7 +23,15 @@ import { SeoModule } from './seo/seo.module'
     // потому что npm-скрипты воркспейса запускаются с cwd = back/
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig, authConfig, captchaConfig, smsConfig, telegramConfig, seoConfig],
+      load: [
+        databaseConfig,
+        authConfig,
+        captchaConfig,
+        smsConfig,
+        mailConfig,
+        telegramConfig,
+        seoConfig,
+      ],
       envFilePath: ['.env', '../.env'],
     }),
     DatabaseModule,

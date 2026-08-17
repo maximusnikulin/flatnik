@@ -2,7 +2,11 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Transform } from 'class-transformer'
 import { IsOptional, IsString, Matches } from 'class-validator'
 
-/** Убирает пробелы, скобки и дефисы, приводит 8XXX/7XXX к +7XXX */
+/**
+ * Убирает пробелы, скобки и дефисы, приводит 8XXX/7XXX к +7XXX.
+ * Почту не трогает: этих символов в адресе нет, а к нижнему регистру её
+ * приводит уже сервис — там же, где она сравнивается с сохранённой.
+ */
 function normalizePhone(value: unknown): unknown {
   if (typeof value !== 'string') return value
   const digits = value.replace(/[\s()-]/g, '')
@@ -12,19 +16,25 @@ function normalizePhone(value: unknown): unknown {
 }
 
 /**
- * Только телефон. Наследники расходятся, а не выстраиваются в цепочку:
- * капча нужна на выдаче кода и не нужна на его проверке, а при
+ * Только идентификатор входа. Наследники расходятся, а не выстраиваются
+ * в цепочку: капча нужна на выдаче кода и не нужна на его проверке, а при
  * `VerifyCodeDto extends RequestCodeDto` токен утёк бы и в verify-code.
  */
-class PhoneDto {
-  /** Телефон в российском формате; номера других стран не обслуживаем */
+class LoginDto {
+  /**
+   * Телефон в российском формате или адрес почты — вход принимает и то и другое,
+   * что именно, сервер решает по наличию собачки. Регэксп покрывает обе формы
+   * сразу: разбить на два поля значило бы заставить фронт угадывать до отправки.
+   */
   @ApiProperty({ example: '+79991234567' })
   @Transform(({ value }) => normalizePhone(value))
-  @Matches(/^\+7\d{10}$/, { message: 'Принимаем только номера +7XXXXXXXXXX' })
-  phone!: string
+  @Matches(/^(\+7\d{10}|[^@\s]+@[^@\s]+\.[^@\s]+)$/, {
+    message: 'Введите телефон +7XXXXXXXXXX или адрес почты',
+  })
+  login!: string
 }
 
-export class RequestCodeDto extends PhoneDto {
+export class RequestCodeDto extends LoginDto {
   /**
    * Токен SmartCaptcha. Опционален в схеме, потому что в разработке ключей может
    * не быть; когда серверный ключ задан, отсутствие токена даёт 400 в CaptchaService.
@@ -34,7 +44,7 @@ export class RequestCodeDto extends PhoneDto {
   captchaToken?: string
 }
 
-export class VerifyCodeDto extends PhoneDto {
+export class VerifyCodeDto extends LoginDto {
   /**
    * Код из SMS. Длина не фиксирована: код выдаёт провайдер, и в тестовом режиме
    * он четырёхзначный (1234), а в боевом может быть длиннее.
@@ -45,7 +55,7 @@ export class VerifyCodeDto extends PhoneDto {
   code!: string
 }
 
-export class SessionPollDto extends PhoneDto {
+export class SessionPollDto extends LoginDto {
   /** Секрет, выданный при запросе входа: без него статус чужого номера не опросить */
   @ApiProperty({ example: '3f2a9c1d4b5e6f708192a3b4c5d6e7f8' })
   @IsString()
@@ -80,13 +90,36 @@ export class SetNicknameDto {
   nickname!: string
 }
 
+/** Почта для привязки к уже вошедшему аккаунту */
+export class EmailDto {
+  @ApiProperty({ example: 'me@example.com' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toLowerCase() : value))
+  @Matches(/^[^@\s]+@[^@\s]+\.[^@\s]+$/, { message: 'Введите адрес почты' })
+  email!: string
+}
+
+export class VerifyEmailDto extends EmailDto {
+  /** Код из письма; свой, шестизначный — в отличие от кода провайдера */
+  @ApiProperty({ example: '123456' })
+  @IsString()
+  @Matches(/^\d{6}$/, { message: 'Код — шесть цифр' })
+  code!: string
+}
+
 export class UserDto {
   /** Идентификатор пользователя */
   id!: string
 
-  /** Телефон, на который выдан токен */
-  @ApiProperty({ example: '+79991234567' })
-  phone!: string
+  /** Телефон, если входили по нему; иначе null */
+  @ApiProperty({ example: '+79991234567', nullable: true })
+  phone!: string | null
+
+  /**
+   * Подтверждённая почта; null — ещё не привязана. На неё уходит решение
+   * модератора, поэтому без неё отзыв оставить нельзя.
+   */
+  @ApiProperty({ example: 'me@example.com', nullable: true })
+  email!: string | null
 
   /** Публичный ник; им подписаны отзывы */
   @ApiProperty({ example: 'maxim_n' })

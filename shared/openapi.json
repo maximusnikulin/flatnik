@@ -187,7 +187,7 @@
         "operationId": "AuthController_acceptConsent",
         "parameters": [],
         "responses": {
-          "200": {
+          "201": {
             "description": "",
             "content": {
               "application/json": {
@@ -198,12 +198,89 @@
             }
           }
         },
+        "summary": "Принять пользовательское соглашение и дать согласие на обработку\nперсональных данных. Одно действие на оба документа: согласие в\nинтерфейсе одно и покрывает их вместе.\n\nИдемпотентен: повторный вызов не сдвигает дату принятия.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me/email/request-code": {
+      "post": {
+        "operationId": "AuthController_requestEmailCode",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Код отправлен на указанную почту"
+          },
+          "409": {
+            "description": "Почта уже используется другим аккаунтом"
+          },
+          "429": {
+            "description": "Код на эту почту запрошен меньше минуты назад"
+          },
+          "503": {
+            "description": "Не удалось отправить письмо"
+          }
+        },
         "security": [
           {
             "bearer": []
           }
         ],
-        "summary": "Принять пользовательское соглашение и дать согласие на обработку\nперсональных данных. Одно действие на оба документа: согласие в\nинтерфейсе одно и покрывает их вместе.\n\nИдемпотентен: повторный вызов не сдвигает дату принятия.",
+        "summary": "Прислать код подтверждения почты уже вошедшему человеку. Нужен потому, что\nотзыв подписывается почтой: на неё уходит решение модератора.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/api/auth/me/email/verify": {
+      "post": {
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyEmailDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Неверный, истёкший код или исчерпаны попытки"
+          },
+          "409": {
+            "description": "Почта уже используется другим аккаунтом"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Подтвердить почту кодом из письма и привязать её к аккаунту",
         "tags": [
           "auth"
         ]
@@ -696,10 +773,10 @@
       "RequestCodeDto": {
         "type": "object",
         "properties": {
-          "phone": {
+          "login": {
             "type": "string",
-            "description": "Телефон в российском формате; номера других стран не обслуживаем",
-            "pattern": "/^\\+7\\d{10}$/",
+            "description": "Телефон в российском формате или адрес почты — вход принимает и то и другое,\nчто именно, сервер решает по наличию собачки. Регэксп покрывает обе формы\nсразу: разбить на два поля значило бы заставить фронт угадывать до отправки.",
+            "pattern": "/^(\\+7\\d{10}|[^@\\s]+@[^@\\s]+\\.[^@\\s]+)$/",
             "example": "+79991234567"
           },
           "captchaToken": {
@@ -708,7 +785,7 @@
           }
         },
         "required": [
-          "phone"
+          "login"
         ]
       },
       "RequestCodeResponseDto": {
@@ -727,10 +804,10 @@
       "SessionPollDto": {
         "type": "object",
         "properties": {
-          "phone": {
+          "login": {
             "type": "string",
-            "description": "Телефон в российском формате; номера других стран не обслуживаем",
-            "pattern": "/^\\+7\\d{10}$/",
+            "description": "Телефон в российском формате или адрес почты — вход принимает и то и другое,\nчто именно, сервер решает по наличию собачки. Регэксп покрывает обе формы\nсразу: разбить на два поля значило бы заставить фронт угадывать до отправки.",
+            "pattern": "/^(\\+7\\d{10}|[^@\\s]+@[^@\\s]+\\.[^@\\s]+)$/",
             "example": "+79991234567"
           },
           "sessionId": {
@@ -741,7 +818,7 @@
           }
         },
         "required": [
-          "phone",
+          "login",
           "sessionId"
         ]
       },
@@ -750,8 +827,15 @@
         "properties": {
           "phone": {
             "type": "string",
-            "description": "Телефон, на который выдан токен",
+            "nullable": true,
+            "description": "Телефон, если входили по нему; иначе null",
             "example": "+79991234567"
+          },
+          "email": {
+            "type": "string",
+            "nullable": true,
+            "description": "Подтверждённая почта; null — ещё не привязана. На неё уходит решение\nмодератора, поэтому без неё отзыв оставить нельзя.",
+            "example": "me@example.com"
           },
           "nickname": {
             "type": "string",
@@ -773,6 +857,7 @@
         },
         "required": [
           "phone",
+          "email",
           "nickname",
           "id",
           "nicknameConfirmed",
@@ -813,10 +898,10 @@
       "VerifyCodeDto": {
         "type": "object",
         "properties": {
-          "phone": {
+          "login": {
             "type": "string",
-            "description": "Телефон в российском формате; номера других стран не обслуживаем",
-            "pattern": "/^\\+7\\d{10}$/",
+            "description": "Телефон в российском формате или адрес почты — вход принимает и то и другое,\nчто именно, сервер решает по наличию собачки. Регэксп покрывает обе формы\nсразу: разбить на два поля значило бы заставить фронт угадывать до отправки.",
+            "pattern": "/^(\\+7\\d{10}|[^@\\s]+@[^@\\s]+\\.[^@\\s]+)$/",
             "example": "+79991234567"
           },
           "code": {
@@ -827,7 +912,7 @@
           }
         },
         "required": [
-          "phone",
+          "login",
           "code"
         ]
       },
@@ -850,6 +935,39 @@
         "required": [
           "accessToken",
           "user"
+        ]
+      },
+      "EmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "pattern": "/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/",
+            "example": "me@example.com"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "VerifyEmailDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "pattern": "/^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$/",
+            "example": "me@example.com"
+          },
+          "code": {
+            "type": "string",
+            "description": "Код из письма; свой, шестизначный — в отличие от кода провайдера",
+            "pattern": "/^\\d{6}$/",
+            "example": "123456"
+          }
+        },
+        "required": [
+          "email",
+          "code"
         ]
       },
       "SetNicknameDto": {

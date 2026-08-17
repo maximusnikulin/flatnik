@@ -5,6 +5,7 @@ import type { ConfigType } from '@nestjs/config'
 import { authConfig } from '../config/auth.config'
 import { CaptchaModule } from '../captcha/captcha.module'
 import { MobileIdModule } from '../mobile-id/mobile-id.module'
+import { MailModule } from '../mail/mail.module'
 import { UsersModule } from '../users/users.module'
 import { AuthCode } from './auth-code.entity'
 import { AuthService } from './auth.service'
@@ -16,6 +17,7 @@ import { AuthController } from './auth.controller'
     UsersModule,
     CaptchaModule,
     MobileIdModule,
+    MailModule,
     JwtModule.registerAsync({
       inject: [authConfig.KEY],
       useFactory: (auth: ConfigType<typeof authConfig>) => ({

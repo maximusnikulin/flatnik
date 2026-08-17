@@ -15,6 +15,7 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
+  ApiNoContentResponse,
   ApiOkResponse,
   ApiServiceUnavailableResponse,
   ApiTags,
@@ -28,6 +29,7 @@ import { JwtAuthGuard } from './jwt-auth.guard'
 import { CurrentUserId } from './current-user-id.decorator'
 import {
   AuthResponseDto,
+  EmailDto,
   RequestCodeDto,
   RequestCodeResponseDto,
   SessionPollDto,
@@ -35,6 +37,7 @@ import {
   SetNicknameDto,
   UserDto,
   VerifyCodeDto,
+  VerifyEmailDto,
 } from './auth.dto'
 import type { User } from '../users/user.entity'
 
@@ -60,7 +63,7 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: 'Вход по этому номеру запрошен меньше минуты назад' })
   @ApiServiceUnavailableResponse({ description: 'Провайдер недоступен — войти сейчас нельзя' })
   requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<RequestCodeResponseDto> {
-    return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
+    return this.authService.requestCode(dto.login, dto.captchaToken, request.ip)
   }
 
   /**
@@ -73,7 +76,7 @@ export class AuthController {
   @HttpCode(200)
   @ApiOkResponse({ type: SessionStatusDto })
   async pollSession(@Body() dto: SessionPollDto): Promise<SessionStatusDto> {
-    const result = await this.authService.pollSession(dto.phone, dto.sessionId)
+    const result = await this.authService.pollSession(dto.login, dto.sessionId)
     if (result.status !== 'confirmed') {
       return { status: result.status }
     }
@@ -119,7 +122,7 @@ export class AuthController {
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Неверный, истёкший код или исчерпаны попытки' })
   async verifyCode(@Body() dto: VerifyCodeDto): Promise<AuthResponseDto> {
-    const { accessToken, user } = await this.authService.verifyCode(dto.phone, dto.code)
+    const { accessToken, user } = await this.authService.verifyCode(dto.login, dto.code)
     return { accessToken, user: this.toUserDto(user) }
   }
 
@@ -144,12 +147,41 @@ export class AuthController {
    * Идемпотентен: повторный вызов не сдвигает дату принятия.
    */
   @Post('me/consent')
+    async acceptConsent(@CurrentUserId() userId: string): Promise<UserDto> {
+    const user = await this.usersService.acceptConsent(userId)
+    return this.toUserDto(user)
+  }
+  /**
+   * Прислать код подтверждения почты уже вошедшему человеку. Нужен потому, что
+   * отзыв подписывается почтой: на неё уходит решение модератора.
+   */
+  // 204, а не 200: тела у ответа нет, а пустое тело с кодом 200 фронтовый
+  // fetcher разбирает как JSON и падает — 204 он пропускает штатно
+  @Post('me/email/request-code')
+  @HttpCode(204)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiNoContentResponse({ description: 'Код отправлен на указанную почту' })
+  @ApiConflictResponse({ description: 'Почта уже используется другим аккаунтом' })
+  @ApiTooManyRequestsResponse({ description: 'Код на эту почту запрошен меньше минуты назад' })
+  @ApiServiceUnavailableResponse({ description: 'Не удалось отправить письмо' })
+  requestEmailCode(@CurrentUserId() userId: string, @Body() dto: EmailDto): Promise<void> {
+    return this.authService.requestEmailAttach(userId, dto.email)
+  }
+
+  /** Подтвердить почту кодом из письма и привязать её к аккаунту */
+  @Post('me/email/verify')
   @HttpCode(200)
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOkResponse({ type: UserDto })
-  async acceptConsent(@CurrentUserId() userId: string): Promise<UserDto> {
-    const user = await this.usersService.acceptConsent(userId)
+  @ApiUnauthorizedResponse({ description: 'Неверный, истёкший код или исчерпаны попытки' })
+  @ApiConflictResponse({ description: 'Почта уже используется другим аккаунтом' })
+  async verifyEmail(
+    @CurrentUserId() userId: string,
+    @Body() dto: VerifyEmailDto,
+  ): Promise<UserDto> {
+    const user = await this.authService.verifyEmailAttach(userId, dto.email, dto.code)
     return this.toUserDto(user)
   }
 
@@ -171,6 +203,7 @@ export class AuthController {
     return {
       id: user.id,
       phone: user.phone,
+      email: user.email,
       nickname: user.nickname,
       nicknameConfirmed: user.nicknameConfirmed,
       consentAccepted: user.consentAcceptedAt !== null,
