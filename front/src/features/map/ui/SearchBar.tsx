@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { SuggestResponseItem } from '@yandex/ymaps3-types'
 import { findAddress, useYmaps } from '../lib/ymaps'
 import { useMapStore } from '../model/map.store'
@@ -16,9 +16,15 @@ export function SearchBar() {
   const [isSearching, setSearching] = useState(false)
   const [note, setNote] = useState<string | null>(null)
 
+  /** Строка, которую поиск уже применил: по ней саджест открываться не должен,
+   *  иначе список выскакивает снова сразу после выбора подсказки */
+  const appliedText = useRef('')
+
   // Выбор адреса извне (клик по пину) отражается в строке поиска
   useEffect(() => {
-    setText(selectedAddress?.address ?? '')
+    const address = selectedAddress?.address ?? ''
+    appliedText.current = address
+    setText(address)
     setItems([])
     setNote(null)
   }, [selectedAddress])
@@ -27,7 +33,7 @@ export function SearchBar() {
   useEffect(() => {
     if (ymaps.status !== 'ready') return
     const query = text.trim()
-    if (query.length < 3 || query === selectedAddress?.address) {
+    if (query.length < 3 || query === appliedText.current) {
       setItems([])
       return
     }
@@ -47,7 +53,7 @@ export function SearchBar() {
       cancelled = true
       window.clearTimeout(handle)
     }
-  }, [text, ymaps.status, selectedAddress])
+  }, [text, ymaps.status])
 
   const applyFound = async (query: { text: string }) => {
     setSearching(true)
@@ -60,6 +66,11 @@ export function SearchBar() {
           selectAddress(result.address)
         } else {
           setMapCenter([result.address.lon, result.address.lat], 17)
+          // У улицы панели нет, а значит и selectedAddress не сменится —
+          // строку приводим к найденному названию сами, иначе в поле
+          // останется обрывок, который набрали до выбора подсказки
+          appliedText.current = result.address.address
+          setText(result.address.address)
         }
       } else if (result.status === 'not-found') {
         setNote('Такой адрес не найден. Уточните улицу и номер дома.')
@@ -73,8 +84,13 @@ export function SearchBar() {
   }
 
   const handlePick = (item: SuggestResponseItem) => {
+    // Подставляем сразу, не дожидаясь геокодера: пока летит ответ, в поле
+    // не должно стоять то, что пользователь набрал до выбора
+    const picked = item.title.text
+    appliedText.current = picked
+    setText(picked)
     // uri не поддерживается Geocoder REST API — используем текстовый адрес
-    void applyFound({ text: item.title.text })
+    void applyFound({ text: picked })
   }
 
   const handleSubmit = (event: React.FormEvent) => {
@@ -85,6 +101,9 @@ export function SearchBar() {
   }
 
   const handleClear = () => {
+    // Сбрасываем и здесь: если адрес не был выбран, эффект на selectedAddress
+    // не сработает и применённая строка осталась бы от прошлого поиска
+    appliedText.current = ''
     setText('')
     setItems([])
     setNote(null)
