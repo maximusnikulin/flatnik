@@ -173,6 +173,33 @@
         ]
       }
     },
+    "/api/auth/me/consent": {
+      "post": {
+        "operationId": "AuthController_acceptConsent",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Принять пользовательское соглашение и дать согласие на обработку\nперсональных данных. Одно действие на оба документа: согласие в\nинтерфейсе одно и покрывает их вместе.\n\nИдемпотентен: повторный вызов не сдвигает дату принятия.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
     "/api/auth/me/nickname": {
       "patch": {
         "operationId": "AuthController_setNickname",
@@ -743,13 +770,18 @@
           "nicknameConfirmed": {
             "type": "boolean",
             "description": "false — ник сгенерирован автоматически и пользователь его ещё не выбирал.\nФронт по этому флагу показывает обязательный шаг ввода ника."
+          },
+          "consentAccepted": {
+            "type": "boolean",
+            "description": "false — пользователь не принимал пользовательское соглашение и не давал\nсогласия на обработку персональных данных. Фронт по этому флагу\nпоказывает блокирующее окно; у аккаунтов, заведённых до появления\nсогласия, флаг тоже false."
           }
         },
         "required": [
           "phone",
           "nickname",
           "id",
-          "nicknameConfirmed"
+          "nicknameConfirmed",
+          "consentAccepted"
         ]
       },
       "SessionStatusDto": {

@@ -1,7 +1,7 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '../../../shared/api/fetcher'
-import { queryKeyRoots } from '../../../shared/api/keys'
 import { useAuthStore } from '../model/auth.store'
+import { useSignOut } from '../model/use-sign-out'
 import { meQuery } from '../api/auth.api'
 
 interface UserMenuProps {
@@ -12,16 +12,9 @@ interface UserMenuProps {
 export function UserMenu({ onOpenMyReviews }: UserMenuProps) {
   const token = useAuthStore((s) => s.token)
   const openModal = useAuthStore((s) => s.openModal)
-  const setToken = useAuthStore((s) => s.setToken)
-  const queryClient = useQueryClient()
 
   const me = useQuery(meQuery(Boolean(token)))
-
-  const signOut = () => {
-    setToken(null)
-    // Профиль в кеше принадлежал прежнему токену
-    queryClient.removeQueries({ queryKey: queryKeyRoots.auth })
-  }
+  const signOut = useSignOut()
 
   if (!token) {
     return (

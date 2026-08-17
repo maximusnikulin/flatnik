@@ -60,6 +60,15 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    # Юридические документы (PDF политик и соглашений). Отдаются напрямую из
+    # front/public/legal без проксирования на vite или бэкенд.
+    location /legal/ {
+        set $legal_upstream http://front:${FRONT_PORT};
+        proxy_pass $legal_upstream;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
     # Всё остальное — vite dev server вместе с его HMR-сокетом. Отдельный порт
     # для HMR не нужен: клиент vite стучится в origin страницы, то есть сюда же.
     location / {

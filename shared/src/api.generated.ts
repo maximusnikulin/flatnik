@@ -118,6 +118,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/auth/me/consent": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Принять пользовательское соглашение и дать согласие на обработку
+         *     персональных данных. Одно действие на оба документа: согласие в
+         *     интерфейсе одно и покрывает их вместе.
+         *
+         *     Идемпотентен: повторный вызов не сдвигает дату принятия.
+         */
+        post: operations["AuthController_acceptConsent"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/auth/me/nickname": {
         parameters: {
             query?: never;
@@ -390,6 +413,13 @@ export interface components {
              *     Фронт по этому флагу показывает обязательный шаг ввода ника.
              */
             nicknameConfirmed: boolean;
+            /**
+             * @description false — пользователь не принимал пользовательское соглашение и не давал
+             *     согласия на обработку персональных данных. Фронт по этому флагу
+             *     показывает блокирующее окно; у аккаунтов, заведённых до появления
+             *     согласия, флаг тоже false.
+             */
+            consentAccepted: boolean;
         };
         SessionStatusDto: {
             /**
@@ -896,6 +926,25 @@ export interface operations {
         };
     };
     AuthController_me: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDto"];
+                };
+            };
+        };
+    };
+    AuthController_acceptConsent: {
         parameters: {
             query?: never;
             header?: never;

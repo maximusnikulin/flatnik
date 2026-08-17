@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { formatPhone, isPhoneComplete, toE164 } from '../../../shared/lib/phone'
 import { PhoneInput } from '../../../shared/ui/PhoneInput'
+import { PRIVACY_POLICY_URL, USER_AGREEMENT_URL } from '../../../shared/lib/contacts'
 import { useAuthStore } from '../model/auth.store'
 import {
   authSessionQuery,
@@ -32,13 +33,22 @@ export function AuthModal() {
   const token = useAuthStore((s) => s.token)
 
   const me = useQuery(meQuery(Boolean(token)))
-  const mustChooseNickname = Boolean(token) && me.data !== undefined && !me.data.nicknameConfirmed
+  // Пока условия не приняты, поверх висит ConsentGate: две неотменяемые
+  // модалки одновременно — выбор ника подождёт до согласия
+  const mustChooseNickname =
+    Boolean(token) &&
+    me.data !== undefined &&
+    me.data.consentAccepted &&
+    !me.data.nicknameConfirmed
 
   // Телефон храним десятью цифрами без кода страны — ровно то, что даёт маска
   const [phone, setPhone] = useState('')
   const [code, setCode] = useState('')
   const [nickname, setNickname] = useState('')
   const [step, setStep] = useState<'phone' | 'waiting' | 'code'>('phone')
+  // Согласие с условиями: до выдачи токена его некуда сохранять, поэтому
+  // до конца входа оно живёт здесь, а на сервер уходит сразу после
+  const [isConsentChecked, setConsentChecked] = useState(false)
   // Секрет сессии: без него бэкенд не отдаст статус входа по чужому номеру
   const [sessionId, setSessionId] = useState('')
   const [sessionNote, setSessionNote] = useState('')
@@ -95,7 +105,7 @@ export function AuthModal() {
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
   // заблокированной, иначе второй клик откроет второе задание
   const isRequesting = captcha.isRunning || requestCode.isPending
-  const canRequest = !isRequesting && isPhoneComplete(phone)
+  const canRequest = !isRequesting && isPhoneComplete(phone) && isConsentChecked
   const requestLabel = captcha.isRunning
     ? 'Подтвердите, что вы не робот'
     : requestCode.isPending
@@ -220,6 +230,26 @@ export function AuthModal() {
             {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
             {sessionNote && <p className="form-error">{sessionNote}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
+            {/* Согласие обязательно: без него аккаунт не создаётся. Ссылки
+                открываются в новой вкладке, чтобы не потерять начатый вход */}
+            <label className="field-check">
+              <input
+                type="checkbox"
+                checked={isConsentChecked}
+                onChange={(event) => setConsentChecked(event.target.checked)}
+                required
+              />
+              <span>
+                Я принимаю{' '}
+                <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
+                  пользовательское соглашение
+                </a>{' '}
+                и даю согласие на{' '}
+                <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
+                  обработку персональных данных
+                </a>
+              </span>
+            </label>
             <button type="submit" className="btn-primary" disabled={!canRequest}>
               {requestLabel}
             </button>

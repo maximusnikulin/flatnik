@@ -1,11 +1,12 @@
-import type { ReactNode } from 'react'
-import { Link } from 'react-router-dom'
-import { Logo } from '../../shared/ui/Logo'
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
+import { Logo } from "../../shared/ui/Logo";
+import { Footer } from "../../features/legal/ui/Footer";
 
 export interface Crumb {
-  title: string
+  title: string;
   /** Последняя крошка — текущая страница, ссылки у неё нет */
-  to?: string
+  to?: string;
 }
 
 /**
@@ -13,7 +14,13 @@ export interface Crumb {
  * Карта здесь намеренно не монтируется — скрипт Яндекса весит около мегабайта
  * и тормозил бы самый частый вход из поиска.
  */
-export function PageShell({ crumbs, children }: { crumbs: Crumb[]; children: ReactNode }) {
+export function PageShell({
+  crumbs,
+  children,
+}: {
+  crumbs: Crumb[];
+  children: ReactNode;
+}) {
   return (
     <div className="page">
       <header className="page__top">
@@ -36,37 +43,39 @@ export function PageShell({ crumbs, children }: { crumbs: Crumb[]; children: Rea
         </nav>
       </header>
       <main className="page__body">{children}</main>
+      {/* Тот же подвал рисует renderPage на сервере — см. page-view.ts */}
+      <Footer />
     </div>
-  )
+  );
 }
 
 /** Форма слова по числу: [1, 2–4, 5–20] — «отзыв, отзыва, отзывов» */
 function plural(count: number, forms: [string, string, string]): string {
-  const tens = count % 100
-  const ones = count % 10
-  if (tens >= 11 && tens <= 14) return forms[2]
-  if (ones === 1) return forms[0]
-  if (ones >= 2 && ones <= 4) return forms[1]
-  return forms[2]
+  const tens = count % 100;
+  const ones = count % 10;
+  if (tens >= 11 && tens <= 14) return forms[2];
+  if (ones === 1) return forms[0];
+  if (ones >= 2 && ones <= 4) return forms[1];
+  return forms[2];
 }
 
 export function reviewsWord(count: number): string {
-  return plural(count, ['отзыв', 'отзыва', 'отзывов'])
+  return plural(count, ["отзыв", "отзыва", "отзывов"]);
 }
 
 export function housesWord(count: number): string {
-  return plural(count, ['доме', 'домах', 'домах'])
+  return plural(count, ["доме", "домах", "домах"]);
 }
 
 export function apartmentsWord(count: number): string {
-  return plural(count, ['квартире', 'квартирах', 'квартирах'])
+  return plural(count, ["квартире", "квартирах", "квартирах"]);
 }
 
 export function streetsWord(count: number): string {
-  return plural(count, ['улице', 'улицам', 'улицам'])
+  return plural(count, ["улице", "улицам", "улицам"]);
 }
 
 /** Средняя оценка для показа: «4,3» */
 export function formatRating(rating: number): string {
-  return rating.toFixed(1).replace('.', ',')
+  return rating.toFixed(1).replace(".", ",");
 }

@@ -55,6 +55,15 @@ server {
         add_header Cache-Control "public, immutable";
     }
 
+    # Юридические документы (PDF политик и соглашений). Лежат в корне статики,
+    # которую наполняет front-сервис при сборке.
+    location /legal/ {
+        try_files $uri =404;
+        # PDF кешируем надолго: они-versioned по дате редакции в названии.
+        expires 30d;
+        add_header Cache-Control "public";
+    }
+
     # Существующий файл (robots.txt, favicon, картинки) отдаём как раньше,
     # остальное рендерит бэкенд: он подставляет в шаблон мету и тексты отзывов.
     location / {

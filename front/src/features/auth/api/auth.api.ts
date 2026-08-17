@@ -43,6 +43,28 @@ function acceptSession(
   // ли шаг выбора ника, и ждать отдельного запроса ради этого незачем
   queryClient.setQueryData(authKeys.me(), data.user)
   void queryClient.invalidateQueries({ queryKey: queryKeyRoots.auth })
+
+  // Согласие отмечено галочкой ещё до запроса кода — без неё вход не
+  // начинается вовсе, — но до этого момента его некуда было сохранять:
+  // эндпоинт требует токен. Отсюда и оба пути входа накрыты одним местом,
+  // а новый пользователь не встречает блокирующее окно сразу после входа.
+  if (!data.user.consentAccepted) {
+    void recordConsent(queryClient)
+  }
+}
+
+/**
+ * Сохранить согласие на сервере. Сбой не рвёт вход: токен уже выдан, а
+ * непринятое согласие поднимет блокирующее окно, где его можно принять
+ * повторно.
+ */
+async function recordConsent(queryClient: QueryClient): Promise<void> {
+  try {
+    const user = await api.post<CurrentUser>('/api/auth/me/consent')
+    queryClient.setQueryData(authKeys.me(), user)
+  } catch {
+    // Молча: за нас доработает ConsentGate
+  }
 }
 
 /**
@@ -88,6 +110,25 @@ export function useVerifyCodeMutation() {
   return useMutation({
     mutationFn: (body: VerifyCodeRequest) => api.post<AuthResponse>('/api/auth/verify-code', body),
     onSuccess: (data) => acceptSession(queryClient, setToken, data),
+  })
+}
+
+/**
+ * Принять пользовательское соглашение и согласие на обработку персональных
+ * данных — одним действием, как они и предъявляются человеку.
+ *
+ * Ответ — тот же профиль, что отдаёт `/api/auth/me`, поэтому он кладётся
+ * прямо в кеш: перезапрашивать его ради одного флага незачем, а блокирующее
+ * окно должно исчезнуть сразу.
+ */
+export function useAcceptConsentMutation() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    // Тела у запроса нет: эндпоинт опознаёт человека по токену
+    mutationFn: () => api.post<CurrentUser>('/api/auth/me/consent'),
+    onSuccess: (user) => {
+      queryClient.setQueryData(authKeys.me(), user)
+    },
   })
 }
 

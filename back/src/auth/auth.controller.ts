@@ -121,6 +121,23 @@ export class AuthController {
     return this.toUserDto(user)
   }
 
+  /**
+   * Принять пользовательское соглашение и дать согласие на обработку
+   * персональных данных. Одно действие на оба документа: согласие в
+   * интерфейсе одно и покрывает их вместе.
+   *
+   * Идемпотентен: повторный вызов не сдвигает дату принятия.
+   */
+  @Post('me/consent')
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: UserDto })
+  async acceptConsent(@CurrentUserId() userId: string): Promise<UserDto> {
+    const user = await this.usersService.acceptConsent(userId)
+    return this.toUserDto(user)
+  }
+
   /** Выбрать никнейм; он же подтверждает автоматически выданный при регистрации */
   @Patch('me/nickname')
   @UseGuards(JwtAuthGuard)
@@ -141,6 +158,7 @@ export class AuthController {
       phone: user.phone,
       nickname: user.nickname,
       nicknameConfirmed: user.nicknameConfirmed,
+      consentAccepted: user.consentAcceptedAt !== null,
     }
   }
 }

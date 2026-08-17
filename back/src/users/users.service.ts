@@ -1,6 +1,6 @@
 import { ConflictException, Injectable } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { QueryFailedError, Repository } from 'typeorm'
+import { IsNull, QueryFailedError, Repository } from 'typeorm'
 import { User } from './user.entity'
 
 /** Код нарушения уникального индекса в Postgres */
@@ -83,6 +83,16 @@ export class UsersService {
       throw error
     }
 
+    return this.users.findOneByOrFail({ id: userId })
+  }
+
+  /**
+   * Отмечает принятие условий. Идемпотентно и намеренно не перезаписывает
+   * уже проставленную дату: повторный вызов не должен сдвигать момент,
+   * которым подтверждается согласие.
+   */
+  async acceptConsent(userId: string): Promise<User> {
+    await this.users.update({ id: userId, consentAcceptedAt: IsNull() }, { consentAcceptedAt: new Date() })
     return this.users.findOneByOrFail({ id: userId })
   }
 }

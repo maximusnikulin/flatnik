@@ -31,6 +31,18 @@ export class User {
   @Column({ type: 'boolean', default: false })
   nicknameConfirmed!: boolean
 
+  /**
+   * Когда человек принял пользовательское соглашение и дал согласие на
+   * обработку персональных данных; null — не принимал, и фронт показывает
+   * ему блокирующее окно.
+   *
+   * Дата, а не флаг: согласие без момента получения ничего не доказывает,
+   * а наружу всё равно уходит булев `consentAccepted`. Существующие
+   * аккаунты получают null и проходят через окно при первом же заходе.
+   */
+  @Column({ type: 'timestamptz', nullable: true })
+  consentAcceptedAt!: Date | null
+
   @CreateDateColumn()
   createdAt!: Date
 }

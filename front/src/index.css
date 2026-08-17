@@ -610,6 +610,58 @@ textarea {
   color: var(--color-text-secondary);
 }
 
+/* Ряд действий над отзывом: жалоба есть у каждой карточки, правка — только
+   у своей и приезжает пропом footer */
+.review-card__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* Жалоба не должна выглядеть основным действием карточки */
+.review-card__report {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.review-card__report:hover {
+  color: var(--color-pin);
+  text-decoration: underline;
+}
+
+/* Ссылки на документы внизу боковой панели карты: подвала на карте нет,
+   а политика обязана быть доступна и с главной страницы */
+.legal-links {
+  margin-top: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  font-size: 12px;
+}
+
+.legal-links a,
+.legal-links button {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 12px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.legal-links a:hover,
+.legal-links button:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
+}
+
 /* Кнопки */
 .btn-primary {
   padding: 14px 16px;
@@ -876,6 +928,13 @@ textarea {
   .floating-panel {
     max-height: 55dvh;
   }
+
+  /* Панель на мобильном занимает весь экран — ссылки прижимаем к её низу
+     и держим в одну строку, чтобы не отъедать место у карточек */
+  .legal-links {
+    padding: 6px 10px;
+    gap: 2px 10px;
+  }
 }
 
 /* ── Страницы каталога ───────────────────────────────────────────────────────
@@ -884,6 +943,10 @@ textarea {
 .page {
   min-height: 100dvh;
   background: var(--color-surface);
+  /* Колонка нужна ради подвала: на короткой странице он должен лежать внизу
+     экрана, а не подниматься под текст */
+  display: flex;
+  flex-direction: column;
 }
 
 .page__top {
@@ -919,12 +982,59 @@ textarea {
 }
 
 .page__body {
+  width: 100%;
   max-width: 760px;
   margin: 0 auto;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  flex: 1 0 auto;
+}
+
+/* Подвал: та же разметка приходит с сервера из renderFooter */
+.page__footer {
+  margin-top: 24px;
+  padding: 20px 24px 28px;
+  border-top: 1px solid var(--color-border);
+  background: var(--color-surface-muted);
+}
+
+.page__footer-note,
+.page__footer-links {
+  width: 100%;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.page__footer-note {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--color-text-secondary);
+}
+
+.page__footer-links {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+}
+
+.page__footer-links a,
+.page__footer-links button {
+  border: none;
+  background: none;
+  padding: 0;
+  font-size: 13px;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+}
+
+.page__footer-links a:hover,
+.page__footer-links button:hover {
+  color: var(--color-primary);
+  text-decoration: underline;
 }
 
 .page__body h1 {
@@ -1022,6 +1132,18 @@ a.btn-secondary {
 
   .page__body h1 {
     font-size: 22px;
+  }
+
+  .page__footer {
+    padding: 16px 16px 24px;
+  }
+
+  /* На узком экране ссылки подвала встают колонкой: в строку они переносятся
+     по одному слову и читаются как сплошной текст */
+  .page__footer-links {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
   }
 }
 

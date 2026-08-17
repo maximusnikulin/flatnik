@@ -9,9 +9,14 @@
   "scripts": {
     "build": "npm run build --workspace=shared && npm run build --workspace=back && npm run build --workspace=front",
     "openapi": "npm run openapi --workspace=back && npm run openapi:types --workspace=shared",
+    "legal:pdf": "node scripts/legal-pdf.mjs",
     "rebuild:dev": "docker compose down && docker volume rm -f flatnik-dev_node_modules flatnik-dev_front_node_modules && docker compose up -d --build"
   },
   "engines": {
     "node": ">=20"
+  },
+  "devDependencies": {
+    "marked": "^18.0.9",
+    "pdfkit": "^0.19.1"
   }
 }
