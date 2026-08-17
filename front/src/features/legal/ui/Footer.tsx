@@ -18,21 +18,23 @@ import { SupportButton } from './SupportButton'
 export function Footer() {
   return (
     <footer className="page__footer">
-      <p className="page__footer-note">
-        Отзывы отражают личное мнение их авторов и не являются утверждениями о фактах.
-        Сервис не проверяет их достоверность. Если отзыв нарушает ваши права, напишите
-        нам — мы рассмотрим обращение.
-      </p>
-      <nav className="page__footer-links" aria-label="Документы и контакты">
-        <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
-          Пользовательское соглашение
-        </a>
-        <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
-          Политика обработки персональных данных
-        </a>
-        <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами</a>
-        <SupportButton />
-      </nav>
+      <div className="page__footer-inner">
+        <p className="page__footer-note">
+          Отзывы отражают личное мнение их авторов и не являются утверждениями о фактах.
+          Сервис не проверяет их достоверность. Если отзыв нарушает ваши права, напишите
+          нам — мы рассмотрим обращение.
+        </p>
+        <nav className="page__footer-links" aria-label="Документы и контакты">
+          <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
+            Пользовательское соглашение
+          </a>
+          <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
+            Политика обработки персональных данных
+          </a>
+          <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами</a>
+          <SupportButton />
+        </nav>
+      </div>
     </footer>
   )
 }

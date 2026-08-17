@@ -994,31 +994,36 @@ textarea {
 
 /* Подвал: та же разметка приходит с сервера из renderFooter */
 .page__footer {
-  margin-top: 24px;
-  padding: 20px 24px 28px;
+  height: 80px;
   border-top: 1px solid var(--color-border);
-  background: var(--color-surface-muted);
+  background: var(--color-surface);
+  flex: none;
 }
 
-.page__footer-note,
-.page__footer-links {
-  width: 100%;
-  max-width: 760px;
+.page__footer-inner {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 1200px;
   margin: 0 auto;
+  padding: 0 24px;
 }
 
 .page__footer-note {
   font-size: 13px;
-  line-height: 1.5;
+  line-height: 1.4;
   color: var(--color-text-secondary);
+  margin: 0;
+  max-width: 600px;
 }
 
 .page__footer-links {
-  margin-top: 12px;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 8px 20px;
+  gap: 20px;
+  flex: none;
 }
 
 .page__footer-links a,
@@ -1029,6 +1034,7 @@ textarea {
   font-size: 13px;
   color: var(--color-text-secondary);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .page__footer-links a:hover,
@@ -1135,15 +1141,24 @@ a.btn-secondary {
   }
 
   .page__footer {
-    padding: 16px 16px 24px;
+    height: auto;
+    min-height: 80px;
   }
 
-  /* На узком экране ссылки подвала встают колонкой: в строку они переносятся
-     по одному слову и читаются как сплошной текст */
-  .page__footer-links {
+  .page__footer-inner {
     flex-direction: column;
+    gap: 12px;
+    padding: 12px 16px;
     align-items: flex-start;
-    gap: 10px;
+  }
+
+  .page__footer-note {
+    max-width: none;
+  }
+
+  .page__footer-links {
+    flex-wrap: wrap;
+    gap: 8px 16px;
   }
 }
 
