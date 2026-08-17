@@ -11,12 +11,14 @@ import { useAuthStore } from '../features/auth/model/auth.store'
 import { ReviewFormModal } from '../features/review-form/ui/ReviewFormModal'
 import { useReviewFormStore } from '../features/review-form/model/review-form.store'
 import type { ReviewFormPrefill } from '../features/review-form/model/review-form.store'
+import { Logo } from '../shared/ui/Logo'
 import { useDocumentMeta } from '../shared/lib/use-document-meta'
 import { houseUrl } from '../shared/lib/house-url'
 
 /**
- * Карта: слева поиск и панели дома, справа профиль и его отзывы, поверх —
- * модалка отзыва. Фичи не импортируют друг друга; их связывает эта страница.
+ * Карта: сверху шапка с логотипом, поиском и профилем, под ней слева панели
+ * дома, справа отзывы профиля, поверх — модалка отзыва. Фичи не импортируют
+ * друг друга; их связывает эта страница.
  *
  * Состояние выбора живёт в map.store и в URL не отражается: карта — инструмент,
  * а не документ. Документы — страницы каталога, у них источник истины в адресе.
@@ -88,57 +90,67 @@ export function MapPage() {
 
   return (
     <div className="app">
-      <div className="app__map">
-        <MapView onSelectHouse={handleSelectHouse} />
-      </div>
-
-      <aside className="user-panel">
-        <UserMenu onOpenMyReviews={() => setMyReviewsOpen((open) => !open)} />
-        {isMyReviewsOpen && (
-          <MyReviewsPanel
-            onClose={() => setMyReviewsOpen(false)}
-            onGoToHouse={selectAddress}
-            onEdit={openEditForm}
-            activeAddress={selectedAddress?.address ?? null}
-          />
-        )}
-      </aside>
-
-      <aside className="side-panel">
+      {/* Шапка в потоке, а не поверх карты: её высота задаёт верх обеих колонок,
+          и на узком экране они не наезжают на переносящуюся строку поиска */}
+      <header className="map-top">
+        <Logo className="map-top__logo" />
         <SearchBar />
-        {selectedAddress && !selectedApartment && (
-          <HousePanel
-            address={selectedAddress.address}
-            entrance={selectedEntrance}
-            onSelectEntrance={selectEntrance}
-            onBackToEntrances={clearEntrance}
-            onSelectApartment={(apartment) =>
-              selectApartment({
-                id: apartment.id,
-                number: apartment.number,
-                entrance: apartment.entrance,
-              })
-            }
-            onOpenHousePage={(slug) => navigate(houseUrl(slug))}
-            onAddReview={() => handleAddReview()}
-          />
-        )}
-        {selectedAddress && selectedApartment && (
-          <ReviewsPanel
-            apartmentId={selectedApartment.id}
-            apartmentNumber={selectedApartment.number}
-            entrance={selectedApartment.entrance}
-            justSubmitted={selectedApartment.id === submittedApartmentId}
-            onBack={clearApartment}
-            onAddReview={() =>
-              handleAddReview({
-                apartmentNumber: selectedApartment.number,
-                entrance: selectedApartment.entrance,
-              })
-            }
-          />
-        )}
-      </aside>
+        <div className="map-top__user">
+          <UserMenu onOpenMyReviews={() => setMyReviewsOpen((open) => !open)} />
+        </div>
+      </header>
+
+      <div className="app__stage">
+        <div className="app__map">
+          <MapView onSelectHouse={handleSelectHouse} />
+        </div>
+
+        <aside className="user-panel">
+          {isMyReviewsOpen && (
+            <MyReviewsPanel
+              onClose={() => setMyReviewsOpen(false)}
+              onGoToHouse={selectAddress}
+              onEdit={openEditForm}
+              activeAddress={selectedAddress?.address ?? null}
+            />
+          )}
+        </aside>
+
+        <aside className="side-panel">
+          {selectedAddress && !selectedApartment && (
+            <HousePanel
+              address={selectedAddress.address}
+              entrance={selectedEntrance}
+              onSelectEntrance={selectEntrance}
+              onBackToEntrances={clearEntrance}
+              onSelectApartment={(apartment) =>
+                selectApartment({
+                  id: apartment.id,
+                  number: apartment.number,
+                  entrance: apartment.entrance,
+                })
+              }
+              onOpenHousePage={(slug) => navigate(houseUrl(slug))}
+              onAddReview={() => handleAddReview()}
+            />
+          )}
+          {selectedAddress && selectedApartment && (
+            <ReviewsPanel
+              apartmentId={selectedApartment.id}
+              apartmentNumber={selectedApartment.number}
+              entrance={selectedApartment.entrance}
+              justSubmitted={selectedApartment.id === submittedApartmentId}
+              onBack={clearApartment}
+              onAddReview={() =>
+                handleAddReview({
+                  apartmentNumber: selectedApartment.number,
+                  entrance: selectedApartment.entrance,
+                })
+              }
+            />
+          )}
+        </aside>
+      </div>
 
       {isFormOpen && (editTarget || selectedAddress) && (
         <ReviewFormModal

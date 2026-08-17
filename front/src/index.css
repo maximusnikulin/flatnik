@@ -1,8 +1,9 @@
 /* Стили экрана карты отзывов; палитра и формы — по дизайн-макету */
 
 :root {
-  --color-primary: #2b32e0;
-  --color-primary-hover: #232ac4;
+  /* Фиолетовый из логотипа: он же ведущий цвет сервиса */
+  --color-primary: #5d17ea;
+  --color-primary-hover: #4d12c4;
   --color-confirmed: #3fa24c;
   --color-pending: #e8a13c;
   --color-pin: #e8442e;
@@ -48,14 +49,72 @@ textarea {
 }
 
 .app {
-  position: relative;
+  display: flex;
+  flex-direction: column;
   height: 100dvh;
   overflow: hidden;
+}
+
+/* Карта и плавающие колонки — всё, что ниже шапки. min-height нужен, чтобы
+   flex-элемент не растягивался содержимым панелей за пределы экрана */
+.app__stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
 }
 
 .app__map {
   position: absolute;
   inset: 0;
+}
+
+/* Шапка карты: слева логотип и поиск, справа вход или профиль */
+.map-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: none;
+  padding: 10px 16px;
+  background: var(--color-surface);
+  box-shadow: var(--shadow-panel);
+  /* Выше обеих колонок: саджест поиска раскрывается поверх панелей */
+  position: relative;
+  z-index: 4;
+}
+
+.map-top__logo {
+  display: flex;
+  flex: none;
+}
+
+.map-top__logo img {
+  height: 28px;
+  width: auto;
+}
+
+.map-top__user {
+  margin-left: auto;
+}
+
+/* В белой шапке своя карточка поиску не нужна — остаётся только заливка поля */
+.map-top .search-bar {
+  flex: 1;
+  min-width: 0;
+  max-width: 520px;
+  border-radius: var(--radius-control);
+  background: var(--color-surface-muted);
+  box-shadow: none;
+}
+
+/* То же и у чипа профиля: он больше не висит над картой */
+.map-top .user-menu {
+  padding: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.map-top .user-menu__enter {
+  box-shadow: none;
 }
 
 /* Правая колонка: вход или профиль, под ним — панели профиля */
@@ -258,6 +317,7 @@ textarea {
 .search-bar__pin {
   display: flex;
   padding-left: 6px;
+  color: var(--color-primary);
 }
 
 .search-bar input {
@@ -784,6 +844,19 @@ textarea {
 
 /* Мобильная раскладка: панель снизу поверх карты */
 @media (max-width: 640px) {
+  .map-top {
+    flex-wrap: wrap;
+    gap: 10px 12px;
+    padding: 10px 12px;
+  }
+
+  /* Втроём в строку они не помещаются — поиск уезжает на вторую */
+  .map-top .search-bar {
+    order: 3;
+    flex-basis: 100%;
+    max-width: none;
+  }
+
   .side-panel {
     top: 12px;
     left: 12px;
@@ -823,10 +896,13 @@ textarea {
 }
 
 .page__logo {
-  font-weight: 800;
-  font-size: 18px;
-  color: var(--color-primary);
+  display: flex;
   text-decoration: none;
+}
+
+.page__logo img {
+  height: 26px;
+  width: auto;
 }
 
 .page__crumbs {

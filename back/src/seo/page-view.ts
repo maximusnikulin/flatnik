@@ -83,7 +83,7 @@ function stars(rating: number): string {
 export function renderPage(crumbs: PageLink[], body: string): string {
   return `<div class="page">
   <header class="page__top">
-    <a class="page__logo" href="/">Квартирник</a>
+    <a class="page__logo" href="/" aria-label="Квартирник — на главную"><img src="/logo-flatnik.svg" alt="Квартирник" width="160" height="28"></a>
     ${renderCrumbs(crumbs)}
   </header>
   <main class="page__body">

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Link } from 'react-router-dom'
+import { Logo } from '../../shared/ui/Logo'
 
 export interface Crumb {
   title: string
@@ -19,9 +20,7 @@ export function PageShell({ crumbs, children }: { crumbs: Crumb[]; children: Rea
         {/* Тот же логотип, что рисует renderPage на сервере: без него название
             сервиса пропадало из шапки, как только клиент заменял серверный
             рендер своим */}
-        <Link className="page__logo" to="/">
-          Квартирник
-        </Link>
+        <Logo className="page__logo" />
         {/* Крошки — настоящие ссылки: по ним ходит и человек, и поисковый робот */}
         <nav className="page__crumbs" aria-label="Хлебные крошки">
           {crumbs.map((crumb, index) => (

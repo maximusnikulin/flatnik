@@ -98,7 +98,7 @@ export function SearchBar() {
       <span className="search-bar__pin" aria-hidden>
         <svg viewBox="0 0 24 24" width="20" height="20">
           <path
-            fill="#eb4d3d"
+            fill="currentColor"
             d="M12 2a7 7 0 0 0-7 7c0 5 7 13 7 13s7-8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"
           />
         </svg>
