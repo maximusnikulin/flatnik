@@ -44,10 +44,8 @@ export function MapPage() {
   const openEditForm = useReviewFormStore((s) => s.openEdit);
   const editTarget = useReviewFormStore((s) => s.editTarget);
 
-  // Намерение «открыть форму после входа»: null — без префилла
-  const [pendingPrefill, setPendingPrefill] = useState<
-    ReviewFormPrefill | null | undefined
-  >(undefined);
+  // Намерение «открыть форму после входа»; undefined — намерения нет
+  const [pendingPrefill, setPendingPrefill] = useState<ReviewFormPrefill | undefined>(undefined)
 
   // «Мои отзывы» живут в правой колонке независимо от панелей дома и квартиры
   const [isMyReviewsOpen, setMyReviewsOpen] = useState(false);
@@ -70,19 +68,23 @@ export function MapPage() {
     if (!token) setMyReviewsOpen(false);
   }, [token]);
 
-  const handleAddReview = (prefill?: ReviewFormPrefill) => {
+  // Адрес нужен форме не только для показа: под ним лежит черновик,
+  // поэтому без выбранного дома отзыв не начать
+  const handleAddReview = (apartment?: { apartmentNumber: string; entrance: string }) => {
+    if (!selectedAddress) return
+    const prefill: ReviewFormPrefill = { address: selectedAddress.address, apartment }
     if (!token) {
-      setPendingPrefill(prefill ?? null);
-      openAuthModal();
-      return;
+      setPendingPrefill(prefill)
+      openAuthModal()
+      return
     }
     openForm(prefill);
   };
 
   useEffect(() => {
     if (token && pendingPrefill !== undefined) {
-      openForm(pendingPrefill ?? undefined);
-      setPendingPrefill(undefined);
+      openForm(pendingPrefill)
+      setPendingPrefill(undefined)
     }
   }, [token, pendingPrefill, openForm]);
 
