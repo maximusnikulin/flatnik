@@ -1,5 +1,3 @@
-import { mailtoUrl } from '../../../shared/lib/contacts'
-
 /**
  * Кнопка «Поддержать» — ведёт на форму доната.
  *
@@ -9,7 +7,7 @@ import { mailtoUrl } from '../../../shared/lib/contacts'
 export function SupportButton({ className }: { className?: string }) {
   return (
     <a
-      href={mailtoUrl('Поддержка проекта Квартирник', 'Здравствуйте! Хочу поддержать проект Квартирник.')}
+      href="https://pay.cloudtips.ru/p/a59aed56"
       className={className ?? 'support-button'}
       target="_blank"
       rel="noopener noreferrer"
