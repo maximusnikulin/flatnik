@@ -17,10 +17,11 @@ import {
 /**
  * Вход по телефону: телефон → подтверждение → никнейм.
  *
- * Подтверждений два вида, и выбирает его провайдер. Мобильная авторизация
- * приходит на SIM-карту — вводить нечего, фронт ждёт и опрашивает статус.
- * Если она для номера недоступна, приходит код в сообщении, и шаг становится
- * привычным полем ввода.
+ * Подтверждений два вида, и выбирает его провайдер уже после запроса, поэтому
+ * второй шаг всегда начинается с ожидания. Мобильная авторизация приходит на
+ * SIM-карту — вводить нечего, фронт опрашивает статус. Если SIM-PUSH не
+ * сработал, провайдер присылает код в SMS и сообщает об этом статусом
+ * `needs-code` — тогда шаг превращается в поле ввода.
  *
  * Третий шаг обязателен и появляется не только сразу после регистрации:
  * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
@@ -92,6 +93,21 @@ export function AuthModal() {
       return
     }
 
+    // SIM-PUSH не сработал: провайдер прислал код в SMS, дальше обычный ввод
+    if (result.status === 'needs-code') {
+      handledSession.current = true
+      setStep('code')
+      return
+    }
+
+    if (result.status === 'failed') {
+      handledSession.current = true
+      setSessionId('')
+      setStep('phone')
+      setSessionNote('Вход не подтверждён. Запросите его заново.')
+      return
+    }
+
     if (result.status === 'expired') {
       handledSession.current = true
       setSessionId('')
@@ -129,7 +145,9 @@ export function AuthModal() {
           handledSession.current = false
           verifyCode.reset()
           setCode('')
-          setStep(started.needsCode ? 'code' : 'waiting')
+          // Всегда ожидание: подтвердят на SIM-карте или придёт код в SMS —
+          // на этом шаге ещё неизвестно, это скажет опрос статуса
+          setStep('waiting')
         },
       },
     )
@@ -260,7 +278,8 @@ export function AuthModal() {
           <div className="modal__body">
             <p className="panel-note">
               Подтвердите вход на телефоне {formatPhone(phone)}: запрос придёт на SIM-карту.
-              Как только подтвердите, окно закроется само.
+              Как только подтвердите, окно закроется само. Если подтверждение не дойдёт,
+              пришлём код в SMS и попросим его ввести.
             </p>
             <p className="panel-note">Ждём подтверждения…</p>
             {session.error && <p className="form-error">{session.error.message}</p>}
@@ -272,13 +291,13 @@ export function AuthModal() {
 
         {step === 'code' && (
           <form onSubmit={handleVerify} className="modal__body">
-            <p className="panel-note">Отправили код на {formatPhone(phone)}.</p>
+            <p className="panel-note">Отправили код в SMS на {formatPhone(phone)}.</p>
             <label className="field">
-              <span className="field__label">Код из сообщения</span>
+              <span className="field__label">Код из SMS</span>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                placeholder="123456"
+                placeholder="1234"
                 inputMode="numeric"
                 pattern="\d{4,8}"
                 autoFocus

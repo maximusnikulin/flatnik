@@ -30,8 +30,8 @@ export const meQuery = (enabled: boolean) =>
   })
 
 /**
- * Финал входа, общий для обоих путей: и подтверждение на телефоне, и код
- * приводят к одному и тому же — токен в сторе, профиль в кеше.
+ * Финал входа, общий для обоих исходов: и подтверждение на SIM-карте, и код
+ * из SMS приводят к одному и тому же — токен в сторе, профиль в кеше.
  */
 function acceptSession(
   queryClient: QueryClient,
@@ -68,8 +68,9 @@ async function recordConsent(queryClient: QueryClient): Promise<void> {
 }
 
 /**
- * Шаг 1: начать вход. Ответ говорит, что показывать дальше: `needsCode` —
- * поле ввода кода, иначе ожидание подтверждения на телефоне.
+ * Шаг 1: начать вход. В ответе только секрет сессии — подтвердят вход на
+ * SIM-карте или придёт код в SMS, на этом шаге ещё неизвестно; это скажет
+ * опрос статуса.
  */
 export function useRequestCodeMutation() {
   return useMutation({
@@ -79,9 +80,10 @@ export function useRequestCodeMutation() {
 }
 
 /**
- * Шаг 2а (мобильная авторизация): опрос статуса, пока человек подтверждает вход
- * на телефоне. Интервал живёт рядом с запросом, а не в компоненте: опрос
- * прекращается по самому ответу, и разносить эти два условия незачем.
+ * Шаг 2: опрос статуса, пока человек подтверждает вход на телефоне. Он же
+ * сообщает, что провайдер перешёл на код в SMS (`needs-code`). Интервал живёт
+ * рядом с запросом, а не в компоненте: опрос прекращается по самому ответу,
+ * и разносить эти два условия незачем.
  */
 export const authSessionQuery = (phone: string, sessionId: string, enabled: boolean) =>
   queryOptions({
@@ -103,7 +105,7 @@ export function useAcceptSession() {
     acceptSession(queryClient, setToken, data)
 }
 
-/** Шаг 2б (запасной путь): обменять код из сообщения на JWT */
+/** Шаг 3 (если провайдер перешёл на SMS): обменять код из SMS на JWT */
 export function useVerifyCodeMutation() {
   const queryClient = useQueryClient()
   const setToken = useAuthStore((s) => s.setToken)

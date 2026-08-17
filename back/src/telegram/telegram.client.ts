@@ -23,7 +23,7 @@ export function escapeHtml(text: string): string {
 }
 
 /**
- * Тонкая обёртка над Bot API на голом fetch — как CaptchaService и SmsService,
+ * Тонкая обёртка над Bot API на голом fetch — как CaptchaService и SmsAeroClient,
  * отдельный SDK ради четырёх методов не нужен.
  *
  * Ни один метод не бросает: сбой телеграма не должен ронять создание отзыва,

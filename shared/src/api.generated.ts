@@ -31,8 +31,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Начать вход: мобильная авторизация на указанный номер, а если она недоступна —
-         *     код в Telegram. Что показывать дальше, говорит ответ: `needsCode`.
+         * Начать вход: мобильная авторизация на указанный номер. Дальше человек либо
+         *     подтверждает вход на SIM-карте, либо получает от провайдера код в SMS —
+         *     что именно, говорит опрос статуса (`session`), а не этот ответ.
          */
         post: operations["AuthController_requestCode"];
         delete?: never;
@@ -51,8 +52,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Узнать, подтвердил ли человек вход на телефоне. Фронт опрашивает этот метод,
-         *     пока идёт мобильная авторизация; при подтверждении в ответе сразу токен.
+         * Узнать, чем кончилась заявка. Фронт опрашивает этот метод, пока идёт
+         *     мобильная авторизация; при подтверждении в ответе сразу токен.
          *
          *     POST, а не GET: телефон и секрет сессии в query-строке осели бы в логах nginx.
          */
@@ -63,7 +64,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/auth/mobile-id/callback": {
+    "/api/auth/mobile-id/callback/{secret}": {
         parameters: {
             query?: never;
             header?: never;
@@ -73,9 +74,15 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Приёмник статусов мобильной авторизации. Решение принимает опрос статуса
-         *     (см. `session`), поэтому здесь только запись в лог: адрес обязателен в запросе
-         *     к провайдеру, и без эндпоинта он стучался бы в 404.
+         * Приёмник статусов мобильной авторизации.
+         *
+         *     Тело приходит без подписи, поэтому решения по нему не принимаются: приёмник
+         *     только помечает заявку как требующую перепроверки, а статус всё равно
+         *     спрашивается у провайдера в `session`. Иначе тот, кто подберёт id заявки,
+         *     прислал бы «status: 1» и получил чужой вход.
+         *
+         *     Секрет заявки в адресе — он же `sessionId`, выданный тому, кто вход начал:
+         *     без него приёмник даже не ищет заявку.
          */
         post: operations["AuthController_mobileIdCallback"];
         delete?: never;
@@ -370,18 +377,12 @@ export interface components {
         };
         RequestCodeResponseDto: {
             /**
-             * @description `mobile-id` — подтверждение приходит на SIM-карту, `code` — запасной путь
-             *     с кодом в сообщении.
-             * @enum {string}
-             */
-            method: "mobile-id" | "code";
-            /**
-             * @description Секрет для опроса статуса входа
+             * @description Секрет для опроса статуса входа. Больше в ответе ничего нет намеренно:
+             *     подтвердит человек вход на SIM-карте или провайдер перейдёт на код в SMS —
+             *     на этом шаге ещё неизвестно, это выясняет опрос статуса.
              * @example 3f2a9c1d4b5e6f708192a3b4c5d6e7f8
              */
             sessionId: string;
-            /** @description true — показать поле ввода кода; false — ждать подтверждения на телефоне */
-            needsCode: boolean;
         };
         SessionPollDto: {
             /**
@@ -423,11 +424,14 @@ export interface components {
         };
         SessionStatusDto: {
             /**
-             * @description `pending` — ждём подтверждения, `confirmed` — вход состоялся и в ответе есть
-             *     токен, `expired` — попытка истекла или секрет не подошёл, нужен новый запрос.
+             * @description `pending` — ждём подтверждения на SIM-карте; `needs-code` — SIM-PUSH не
+             *     сработал, провайдер прислал код в SMS и надо показать поле ввода;
+             *     `confirmed` — вход состоялся и в ответе есть токен; `failed` — провайдер
+             *     аутентификацию не подтвердил; `expired` — попытка истекла или секрет
+             *     не подошёл. Последние два лечатся новым запросом входа.
              * @enum {string}
              */
-            status: "pending" | "confirmed" | "expired";
+            status: "pending" | "needs-code" | "confirmed" | "failed" | "expired";
             /** @description Только при `confirmed` */
             accessToken?: string;
             /** @description Только при `confirmed` */
@@ -440,9 +444,9 @@ export interface components {
              */
             phone: string;
             /**
-             * @description Код из сообщения. Длина не фиксирована шестью цифрами: свой код мы генерируем
-             *     шестизначным, но в мобильной авторизации код выдаёт провайдер.
-             * @example 123456
+             * @description Код из SMS. Длина не фиксирована: код выдаёт провайдер, и в тестовом режиме
+             *     он четырёхзначный (1234), а в боевом может быть длиннее.
+             * @example 1234
              */
             code: string;
         };
@@ -845,7 +849,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Провайдер недоступен */
+            /** @description Провайдер недоступен — войти сейчас нельзя */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -881,13 +885,15 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                secret: string;
+            };
             cookie?: never;
         };
         requestBody?: never;
         responses: {
             /** @description Уведомление принято */
-            204: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -5,6 +5,7 @@ import {
   HttpCode,
   Logger,
   NotFoundException,
+  Param,
   Patch,
   Post,
   Req,
@@ -14,7 +15,6 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiForbiddenResponse,
-  ApiNoContentResponse,
   ApiOkResponse,
   ApiServiceUnavailableResponse,
   ApiTags,
@@ -49,22 +49,23 @@ export class AuthController {
   ) {}
 
   /**
-   * Начать вход: мобильная авторизация на указанный номер, а если она недоступна —
-   * код в Telegram. Что показывать дальше, говорит ответ: `needsCode`.
+   * Начать вход: мобильная авторизация на указанный номер. Дальше человек либо
+   * подтверждает вход на SIM-карте, либо получает от провайдера код в SMS —
+   * что именно, говорит опрос статуса (`session`), а не этот ответ.
    */
   @Post('request-code')
   @HttpCode(200)
   @ApiOkResponse({ type: RequestCodeResponseDto })
   @ApiForbiddenResponse({ description: 'Не пройдена проверка капчи' })
   @ApiTooManyRequestsResponse({ description: 'Вход по этому номеру запрошен меньше минуты назад' })
-  @ApiServiceUnavailableResponse({ description: 'Провайдер недоступен' })
+  @ApiServiceUnavailableResponse({ description: 'Провайдер недоступен — войти сейчас нельзя' })
   requestCode(@Body() dto: RequestCodeDto, @Req() request: Request): Promise<RequestCodeResponseDto> {
     return this.authService.requestCode(dto.phone, dto.captchaToken, request.ip)
   }
 
   /**
-   * Узнать, подтвердил ли человек вход на телефоне. Фронт опрашивает этот метод,
-   * пока идёт мобильная авторизация; при подтверждении в ответе сразу токен.
+   * Узнать, чем кончилась заявка. Фронт опрашивает этот метод, пока идёт
+   * мобильная авторизация; при подтверждении в ответе сразу токен.
    *
    * POST, а не GET: телефон и секрет сессии в query-строке осели бы в логах nginx.
    */
@@ -84,18 +85,32 @@ export class AuthController {
   }
 
   /**
-   * Приёмник статусов мобильной авторизации. Решение принимает опрос статуса
-   * (см. `session`), поэтому здесь только запись в лог: адрес обязателен в запросе
-   * к провайдеру, и без эндпоинта он стучался бы в 404.
+   * Приёмник статусов мобильной авторизации.
+   *
+   * Тело приходит без подписи, поэтому решения по нему не принимаются: приёмник
+   * только помечает заявку как требующую перепроверки, а статус всё равно
+   * спрашивается у провайдера в `session`. Иначе тот, кто подберёт id заявки,
+   * прислал бы «status: 1» и получил чужой вход.
+   *
+   * Секрет заявки в адресе — он же `sessionId`, выданный тому, кто вход начал:
+   * без него приёмник даже не ищет заявку.
    */
-  @Post('mobile-id/callback')
-  @HttpCode(204)
-  @ApiNoContentResponse({ description: 'Уведомление принято' })
-  mobileIdCallback(@Body() body: Record<string, unknown>): void {
+  @Post('mobile-id/callback/:secret')
+  @HttpCode(200)
+  @ApiOkResponse({ description: 'Уведомление принято' })
+  async mobileIdCallback(
+    @Param('secret') secret: string,
+    @Body() body: Record<string, unknown>,
+  ): Promise<void> {
     // Целиком тело не пишем: в нём может приехать код, отправленный человеку
+    const requestId = String(body?.id ?? '')
+    const matched = await this.authService.markForRecheck(secret, requestId)
     this.logger.log(
-      `Уведомление мобильной авторизации: заявка ${String(body?.id)}, статус ${String(body?.status)}`,
+      `Уведомление мобильной авторизации: заявка ${requestId}, статус ${String(body?.status)}` +
+        (matched ? '' : ' — заявка не найдена'),
     )
+    // Провайдер ждёт 200 и повторяет сутки, если его не получил. Неизвестная
+    // заявка — не повод заставлять его повторять: ошибка не на его стороне.
   }
 
   /** Обменять код из сообщения на JWT */

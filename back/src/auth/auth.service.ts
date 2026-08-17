@@ -4,11 +4,9 @@ import { JwtService } from '@nestjs/jwt'
 import { randomBytes, timingSafeEqual } from 'node:crypto'
 import { LessThan, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
-import { MobileIdService } from '../sms/mobile-id.service'
-import { SmsService } from '../sms/sms.service'
+import { MobileIdService, MobileIdStatus, toOutcome } from '../mobile-id/mobile-id.service'
 import { UsersService } from '../users/users.service'
 import { AuthCode } from './auth-code.entity'
-import type { AuthChannel } from './auth-code.entity'
 import type { User } from '../users/user.entity'
 import type { JwtPayload } from './auth.types'
 
@@ -18,7 +16,7 @@ const CODE_TTL_MS = 5 * 60 * 1000
 /** Пауза между попытками входа на один номер: каждая стоит денег */
 const REQUEST_INTERVAL_MS = 60 * 1000
 
-/** Неудачных попыток ввода, после которых код аннулируется */
+/** Неудачных попыток ввода, после которых попытка аннулируется */
 const MAX_ATTEMPTS = 5
 
 /**
@@ -29,15 +27,16 @@ const POLL_INTERVAL_MS = 2000
 
 /** Что показывать пользователю после запроса входа */
 export interface StartedAuth {
-  method: AuthChannel
-  /** Человеку пришёл код и его надо ввести; иначе он подтверждает вход на телефоне */
-  needsCode: boolean
   /** Секрет для опроса статуса */
   sessionId: string
 }
 
 export type SessionResult =
   | { status: 'pending' }
+  /** SIM-PUSH не сработал, провайдер прислал код в SMS — показать поле ввода */
+  | { status: 'needs-code' }
+  /** Аутентификация не пройдена: нужен новый запрос */
+  | { status: 'failed' }
   | { status: 'expired' }
   | { status: 'confirmed'; accessToken: string; user: User }
 
@@ -59,12 +58,13 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly captchaService: CaptchaService,
     private readonly mobileIdService: MobileIdService,
-    private readonly smsService: SmsService,
   ) {}
 
   /**
-   * Начинает вход: заводит у провайдера заявку на мобильную авторизацию, а если
-   * для номера она недоступна — откатывается на код в Telegram.
+   * Начинает вход: заводит у провайдера заявку на мобильную авторизацию.
+   * Дальше человек либо подтверждает вход прямо на SIM-карте, либо — если
+   * SIM-PUSH не сработал — получает от провайдера код в SMS. Что именно
+   * произошло, на этом шаге ещё неизвестно: узнаём опросом статуса.
    *
    * Порядок шагов важен. Пауза проверяется до капчи: дёргать Яндекс ради заведомо
    * отклонённого запроса незачем. Капча — до обращения к провайдеру, потому что
@@ -92,44 +92,21 @@ export class AuthService {
 
     await this.captchaService.validate(captchaToken, ip)
 
-    const mobileId = await this.mobileIdService.start(phone)
-
-    let channel: AuthChannel = 'mobile-id'
-    let needsCode = true
-    let code: string | null = null
-
-    if (!mobileId) {
-      // Мобильная авторизация не для всех операторов: отказ провайдера включает
-      // запасной путь, а не закрывает вход
-      channel = 'code'
-      // Диапазон 100000–999999, а не padStart от нуля: провайдер принимает код
-      // числом, и «012345» уехало бы к нему как пятизначное 12345
-      code = String(100_000 + Math.floor(Math.random() * 900_000))
-      if (this.smsService.isEnabled) {
-        // Текст — для каскадной SMS, если код не доставили в Telegram. Источник
-        // в нём обязателен, пока имя отправителя не своё, а бесплатное, поэтому
-        // домен остаётся в скобках рядом с названием сервиса
-        await this.smsService.sendCode(
-          phone,
-          code,
-          `Код для входа на Квартирник (flatnik.ru): ${code}`,
-        )
-      } else {
-        this.logger.warn(`Доступы SMS Aero не заданы — код для ${phone}: ${code}`)
-      }
-    } else {
-      needsCode = mobileId.needsCode
-    }
+    // Секрет выдаём до заявки: он уходит провайдеру в callbackUrl и там же
+    // аутентифицирует webhook, поэтому должен быть известен раньше вызова
+    const sessionId = randomBytes(16).toString('hex')
+    // Провайдер недоступен или отказал — это 503 из MobileIdService: запасного
+    // пути больше нет, и притворяться, что вход начат, нельзя
+    const request = await this.mobileIdService.start(phone, this.mobileIdService.callbackUrl(sessionId))
 
     const startedAt = Date.now()
-    const sessionId = randomBytes(16).toString('hex')
     // upsert, а не save: двойной клик иначе гонялся бы между select и insert
     await this.authCodes.upsert(
       {
         phone,
-        channel,
-        requestId: mobileId?.requestId ?? null,
-        code,
+        requestId: request.requestId,
+        providerStatus: request.status,
+        needsRecheck: false,
         pollSecret: sessionId,
         lastPollAt: null,
         expiresAt: new Date(startedAt + CODE_TTL_MS),
@@ -139,12 +116,13 @@ export class AuthService {
       ['phone'],
     )
 
-    return { method: channel, needsCode, sessionId }
+    return { sessionId }
   }
 
   /**
-   * Спрашивает провайдера, подтвердил ли человек вход на телефоне. Единственный
-   * способ узнать результат SIM-PUSH: вводом он не сопровождается.
+   * Спрашивает, чем кончилась заявка. Единственный способ узнать результат
+   * SIM-PUSH: вводом он не сопровождается. Он же сообщает, что провайдер
+   * перешёл на код в SMS и пора показать поле ввода.
    *
    * Чужой номер так не опросить: нужен секрет, выданный тому, кто вход начал.
    * Не сошёлся — отвечаем «истекло», а не «нет доступа»: разные ответы
@@ -158,27 +136,41 @@ export class AuthService {
     if (pending.expiresAt < new Date()) {
       return { status: 'expired' }
     }
-    // Запасной путь подтверждается вводом кода, спрашивать о нём провайдера нечего
-    if (pending.channel !== 'mobile-id' || !pending.requestId) {
-      return { status: 'pending' }
+
+    // Уже известный конечный статус повторно у провайдера не спрашиваем
+    const known = toOutcome(pending.providerStatus)
+    if (known === 'confirmed') {
+      return this.confirm(phone)
     }
-    if (pending.lastPollAt && Date.now() - pending.lastPollAt.getTime() < POLL_INTERVAL_MS) {
-      return { status: 'pending' }
+    if (known === 'failed') {
+      return { status: 'failed' }
     }
 
-    await this.authCodes.update({ phone }, { lastPollAt: new Date() })
-    const { confirmed } = await this.mobileIdService.status(pending.requestId)
-    if (!confirmed) {
-      return { status: 'pending' }
+    // Троттлинг опроса. Webhook о смене статуса его отменяет: раз провайдер
+    // уже сообщил, что что-то изменилось, ждать паузу незачем
+    const throttled =
+      pending.lastPollAt !== null && Date.now() - pending.lastPollAt.getTime() < POLL_INTERVAL_MS
+    if (throttled && !pending.needsRecheck) {
+      return { status: known === 'needs-code' ? 'needs-code' : 'pending' }
     }
 
-    const session = await this.issueToken(phone)
-    return { status: 'confirmed', ...session }
+    await this.authCodes.update({ phone }, { lastPollAt: new Date(), needsRecheck: false })
+    const { outcome, status } = await this.mobileIdService.status(pending.requestId)
+    await this.authCodes.update({ phone }, { providerStatus: status })
+
+    if (outcome === 'confirmed') {
+      return this.confirm(phone)
+    }
+    if (outcome === 'failed') {
+      this.logger.warn(`Заявка ${pending.requestId}: аутентификация не пройдена (статус ${status})`)
+      return { status: 'failed' }
+    }
+    return { status: outcome === 'needs-code' ? 'needs-code' : 'pending' }
   }
 
   /**
-   * Проверяет код. У мобильной авторизации код выдал провайдер — он же его и
-   * проверяет; у запасного пути код наш и сверяется здесь.
+   * Проверяет одноразовый код. Код выдал провайдер — он же его и проверяет:
+   * своего кода у нас нет.
    */
   async verifyCode(phone: string, code: string): Promise<{ accessToken: string; user: User }> {
     const pending = await this.authCodes.findOneBy({ phone })
@@ -186,13 +178,10 @@ export class AuthService {
       throw new UnauthorizedException('Неверный или истёкший код')
     }
 
-    const isValid =
-      pending.channel === 'mobile-id' && pending.requestId
-        ? await this.mobileIdService.verify(pending.requestId, code)
-        : pending.code === code
+    const isValid = await this.mobileIdService.verify(pending.requestId, code)
 
     if (!isValid) {
-      // Шесть цифр перебираются, поэтому попытки считаем и на пределе код гасим.
+      // Код перебирается, поэтому попытки считаем и на пределе заявку гасим.
       // Текст ошибки общий: разные сообщения подсказывали бы боту, что номер угадан.
       const attempts = pending.attempts + 1
       if (attempts >= MAX_ATTEMPTS) {
@@ -206,10 +195,33 @@ export class AuthService {
       throw new UnauthorizedException('Неверный или истёкший код')
     }
 
+    await this.authCodes.update({ phone }, { providerStatus: MobileIdStatus.Confirmed })
     return this.issueToken(phone)
   }
 
-  /** Общий финал обоих путей входа: попытка закрыта, пользователь получает токен */
+  /**
+   * Отмечает заявку как требующую перепроверки. Вызывается приёмником webhook,
+   * который сам по себе ничего не решает: тело приходит без подписи, поэтому
+   * статус мы всё равно спрашиваем у провайдера.
+   *
+   * Секрет из адреса сверяем здесь же — по нему и находится заявка.
+   */
+  async markForRecheck(sessionId: string, requestId: string): Promise<boolean> {
+    const pending = await this.authCodes.findOneBy({ pollSecret: sessionId })
+    if (!pending || pending.requestId !== requestId) {
+      return false
+    }
+    await this.authCodes.update({ phone: pending.phone }, { needsRecheck: true })
+    return true
+  }
+
+  /** Подтверждённая заявка превращается в токен */
+  private async confirm(phone: string): Promise<SessionResult> {
+    const session = await this.issueToken(phone)
+    return { status: 'confirmed', ...session }
+  }
+
+  /** Общий финал входа: попытка закрыта, пользователь получает токен */
   private async issueToken(phone: string): Promise<{ accessToken: string; user: User }> {
     await this.authCodes.delete({ phone })
 

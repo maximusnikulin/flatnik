@@ -36,10 +36,10 @@ export class RequestCodeDto extends PhoneDto {
 
 export class VerifyCodeDto extends PhoneDto {
   /**
-   * Код из сообщения. Длина не фиксирована шестью цифрами: свой код мы генерируем
-   * шестизначным, но в мобильной авторизации код выдаёт провайдер.
+   * Код из SMS. Длина не фиксирована: код выдаёт провайдер, и в тестовом режиме
+   * он четырёхзначный (1234), а в боевом может быть длиннее.
    */
-  @ApiProperty({ example: '123456' })
+  @ApiProperty({ example: '1234' })
   @IsString()
   @Matches(/^\d{4,8}$/, { message: 'Код — от 4 до 8 цифр' })
   code!: string
@@ -55,16 +55,10 @@ export class SessionPollDto extends PhoneDto {
 
 export class RequestCodeResponseDto {
   /**
-   * `mobile-id` — подтверждение приходит на SIM-карту, `code` — запасной путь
-   * с кодом в сообщении.
+   * Секрет для опроса статуса входа. Больше в ответе ничего нет намеренно:
+   * подтвердит человек вход на SIM-карте или провайдер перейдёт на код в SMS —
+   * на этом шаге ещё неизвестно, это выясняет опрос статуса.
    */
-  @ApiProperty({ enum: ['mobile-id', 'code'] })
-  method!: 'mobile-id' | 'code'
-
-  /** true — показать поле ввода кода; false — ждать подтверждения на телефоне */
-  needsCode!: boolean
-
-  /** Секрет для опроса статуса входа */
   @ApiProperty({ example: '3f2a9c1d4b5e6f708192a3b4c5d6e7f8' })
   sessionId!: string
 }
@@ -123,11 +117,14 @@ export class AuthResponseDto {
 
 export class SessionStatusDto {
   /**
-   * `pending` — ждём подтверждения, `confirmed` — вход состоялся и в ответе есть
-   * токен, `expired` — попытка истекла или секрет не подошёл, нужен новый запрос.
+   * `pending` — ждём подтверждения на SIM-карте; `needs-code` — SIM-PUSH не
+   * сработал, провайдер прислал код в SMS и надо показать поле ввода;
+   * `confirmed` — вход состоялся и в ответе есть токен; `failed` — провайдер
+   * аутентификацию не подтвердил; `expired` — попытка истекла или секрет
+   * не подошёл. Последние два лечатся новым запросом входа.
    */
-  @ApiProperty({ enum: ['pending', 'confirmed', 'expired'] })
-  status!: 'pending' | 'confirmed' | 'expired'
+  @ApiProperty({ enum: ['pending', 'needs-code', 'confirmed', 'failed', 'expired'] })
+  status!: 'pending' | 'needs-code' | 'confirmed' | 'failed' | 'expired'
 
   /** Только при `confirmed` */
   @ApiProperty({ required: false })
