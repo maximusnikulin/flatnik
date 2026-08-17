@@ -1,5 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { useShallow } from 'zustand/react/shallow'
 import { ApiError } from '../../../shared/api/fetcher'
+import { meQuery } from '../../auth/api/auth.api'
+import { EmailConfirmField } from './EmailConfirmField'
 import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
 import { useUpdateReviewMutation } from '../api/update-review'
@@ -44,6 +47,12 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
   const createMutation = useCreateReviewMutation()
   const updateMutation = useUpdateReviewMutation()
   const captcha = useCaptcha()
+
+  // Решение модератора уходит письмом, поэтому у автора должна быть
+  // подтверждённая почта. Модалка открывается только вошедшему, так что
+  // профиль здесь уже в кеше
+  const me = useQuery(meQuery(true))
+  const email = me.data?.email ?? null
 
   const { editTarget } = form
   const isEditing = editTarget !== null
@@ -110,7 +119,9 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
     )
   }
 
-  const isBusy = captcha.isRunning || mutation.isPending || form.rating === null
+  // Правка почты не требует: отзыв уже создан, значит она тогда и подтверждалась
+  const needsEmail = !isEditing && email === null
+  const isBusy = captcha.isRunning || mutation.isPending || form.rating === null || needsEmail
   const maxMonth = currentMonth()
 
   return (
@@ -214,6 +225,13 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
             </span>
           </label>
 
+          {/* Почта уже подтверждена — просто напоминаем, куда придёт ответ.
+              Иначе просим подтвердить: без неё отправку не разблокируем */}
+          {!isEditing && email !== null && (
+            <p className="panel-note">Статус отзыва отправим на почту {email}.</p>
+          )}
+          {needsEmail && <EmailConfirmField />}
+
           {isEditing && (
             <p className="panel-note">
               После правки отзыв снова уйдёт на проверку и до её окончания будет скрыт.
@@ -236,7 +254,9 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
               ? 'Подтвердите, что вы не робот'
               : mutation.isPending
                 ? 'Отправляем…'
-                : 'Отправить на проверку'}
+                : needsEmail
+                  ? 'Сначала подтвердите почту'
+                  : 'Отправить на проверку'}
           </button>
         </form>
       </div>

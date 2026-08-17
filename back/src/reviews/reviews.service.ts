@@ -9,6 +9,7 @@ import { DataSource, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
 import { toHouseSlugsDto } from '../houses/houses.dto'
 import { HousesService } from '../houses/houses.service'
+import { UsersService } from '../users/users.service'
 import { ModerationService } from './moderation.service'
 import { Review } from './review.entity'
 import { ReviewStatus } from './review-status'
@@ -74,11 +75,20 @@ export class ReviewsService {
     private readonly captchaService: CaptchaService,
     private readonly housesService: HousesService,
     private readonly moderationService: ModerationService,
+    private readonly usersService: UsersService,
   ) {}
 
   /** Создаёт отзыв, заводя дом и квартиру при необходимости */
   async create(userId: string, dto: CreateReviewDto, ip?: string): Promise<ReviewCreatedDto> {
     assertPeriod(dto.periodFrom, dto.periodTo)
+
+    // Решение модератора уходит автору письмом, поэтому подтверждённая почта —
+    // обязательное условие отзыва. Форма её и так требует, но проверка нужна
+    // здесь: иначе требование обходится прямым запросом к API
+    const author = await this.usersService.findById(userId)
+    if (!author?.email) {
+      throw new BadRequestException('Подтвердите почту — на неё придёт решение модератора')
+    }
 
     // Сетевой вызов — до транзакции, чтобы не держать соединение с БД
     await this.captchaService.validate(dto.captchaToken, ip)

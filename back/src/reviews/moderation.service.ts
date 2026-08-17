@@ -3,6 +3,8 @@ import type { OnModuleDestroy, OnModuleInit } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { TelegramClient, escapeHtml } from '../telegram/telegram.client'
+import { MailService } from '../mail/mail.service'
+import { UsersService } from '../users/users.service'
 import type {
   TelegramCallbackQuery,
   TelegramMessage,
@@ -54,6 +56,8 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     @InjectRepository(Review)
     private readonly reviews: Repository<Review>,
     private readonly telegram: TelegramClient,
+    private readonly mail: MailService,
+    private readonly users: UsersService,
   ) {}
 
   onModuleInit(): void {
@@ -264,7 +268,34 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     review.rejectionReason = rejectionReason
     await this.reviews.save(review)
     this.logger.log(`Отзыв ${reviewId}: статус ${status}`)
+    await this.mailVerdict(review)
     return review
+  }
+
+  /**
+   * Сообщает автору решение письмом. Не бросает: решение модератора уже
+   * сохранено, и недоступный SMTP не повод отвечать боту ошибкой — тот же
+   * принцип, что и у `notify` с недоступным телеграмом.
+   */
+  private async mailVerdict(review: Review): Promise<void> {
+    const author = await this.users.findById(review.authorId)
+    if (!author?.email) {
+      // Почта обязательна для новых отзывов, но у заведённых раньше её нет
+      this.logger.warn(`Отзыв ${review.id}: у автора нет почты, решение не отправлено`)
+      return
+    }
+
+    const approved = review.status === ReviewStatus.Confirmed
+    const subject = approved ? 'Ваш отзыв опубликован' : 'Ваш отзыв отклонён'
+    const body = approved
+      ? 'Модератор одобрил ваш отзыв — он опубликован на Квартирнике.'
+      : `Модератор отклонил ваш отзыв.\n\nПричина: ${review.rejectionReason ?? 'не указана'}\n\nОтзыв можно поправить и отправить на проверку заново.`
+
+    try {
+      await this.mail.send(author.email, subject, body)
+    } catch (error) {
+      this.logger.error(`Отзыв ${review.id}: не удалось отправить решение автору: ${String(error)}`)
+    }
   }
 
   private isModerator(message: TelegramMessage): boolean {
