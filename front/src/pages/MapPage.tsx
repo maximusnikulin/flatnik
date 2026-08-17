@@ -11,7 +11,7 @@ import { useAuthStore } from "../features/auth/model/auth.store";
 import { ReviewFormModal } from "../features/review-form/ui/ReviewFormModal";
 import { useReviewFormStore } from "../features/review-form/model/review-form.store";
 import type { ReviewFormPrefill } from "../features/review-form/model/review-form.store";
-import { LegalLinks } from "../features/legal/ui/LegalLinks";
+import { Footer } from "../features/legal/ui/Footer";
 import { useDocumentMeta } from "../shared/lib/use-document-meta";
 import { houseUrl } from "../shared/lib/house-url";
 import { Logo } from "../shared/ui/Logo";
@@ -156,10 +156,10 @@ export function MapPage() {
               }
             />
           )}
-          {/* Подвала на карте нет — ссылки на документы живут здесь */}
-          <LegalLinks />
         </aside>
       </div>
+
+      <Footer />
 
       {isFormOpen && (editTarget || selectedAddress) && (
         <ReviewFormModal
