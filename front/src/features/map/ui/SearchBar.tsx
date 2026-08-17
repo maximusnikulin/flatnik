@@ -86,7 +86,8 @@ export function SearchBar() {
   const handlePick = (item: SuggestResponseItem) => {
     // Подставляем сразу, не дожидаясь геокодера: пока летит ответ, в поле
     // не должно стоять то, что пользователь набрал до выбора
-    const picked = item.title.text
+    // Собираем полный адрес: заголовок + подзаголовок (город)
+    const picked = [item.title.text, item.subtitle?.text].filter(Boolean).join(', ')
     appliedText.current = picked
     setText(picked)
     // uri не поддерживается Geocoder REST API — используем текстовый адрес
