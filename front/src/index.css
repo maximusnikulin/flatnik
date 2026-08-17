@@ -705,6 +705,37 @@ textarea {
   font-size: 14px;
 }
 
+/* Кнопка «Поддержать»: стиль как у логотипа — белый текст на фиолетовом фоне */
+.support-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  text-decoration: none;
+  border-radius: var(--radius-control);
+  transition: background-color 0.2s;
+}
+
+.support-button:hover {
+  background: var(--color-primary-hover);
+}
+
+.support-button__icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+.support-button__text {
+  line-height: 1;
+}
+
 /* Модалки */
 .modal-overlay {
   position: fixed;
