@@ -19,6 +19,7 @@ export function Footer() {
   return (
     <footer className="page__footer">
       <div className="page__footer-inner">
+        <SupportButton />
         <nav className="page__footer-links" aria-label="Документы и контакты">
           <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
             Пользовательское соглашение
@@ -27,7 +28,6 @@ export function Footer() {
             Политика обработки персональных данных
           </a>
           <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами</a>
-          <SupportButton />
         </nav>
       </div>
     </footer>
