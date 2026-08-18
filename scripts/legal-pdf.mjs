@@ -21,7 +21,6 @@ const OUT = path.join(ROOT, 'front', 'public', 'legal')
 const DOCS = [
   { md: 'privacy-policy.md', pdf: 'privacy-policy.pdf' },
   { md: 'user-agreement.md', pdf: 'user-agreement.pdf' },
-  { md: 'offerta.md', pdf: 'offerta.pdf' },
 ]
 
 /** A4 в пунктах; поля — 25 мм ≈ 71 pt */
