@@ -189,5 +189,5 @@
 ### 9.3. Контакты
 
 **Никулин Максим Сергеевич**
-Email: **flatnik_sprt@mail.ru**
+Email: **support@flatnik.ru**
 Сайт: `flatnik.ru`

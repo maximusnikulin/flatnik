@@ -8,7 +8,7 @@
  */
 
 /** Единый адрес для жалоб на отзывы, обратной связи и обращений по 152-ФЗ */
-export const SUPPORT_EMAIL = 'flatnik_sprt@mail.ru'
+export const SUPPORT_EMAIL = 'support@flatnik.ru'
 
 export const USER_AGREEMENT_URL = '/legal/user-agreement.pdf'
 export const PRIVACY_POLICY_URL = '/legal/privacy-policy.pdf'

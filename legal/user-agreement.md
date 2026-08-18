@@ -180,5 +180,5 @@
 
 **Никулин Максим Сергеевич**
 ИНН: 222332483466
-Адрес для корреспонденции: `flatnik_sprt@mail.ru`
-E-mail: `flatnik_sprt@mail.ru`
+Адрес для корреспонденции: `support@flatnik.ru`
+E-mail: `support@flatnik.ru`
