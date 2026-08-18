@@ -147,10 +147,15 @@ export class AuthController {
    * Идемпотентен: повторный вызов не сдвигает дату принятия.
    */
   @Post('me/consent')
-    async acceptConsent(@CurrentUserId() userId: string): Promise<UserDto> {
+  @HttpCode(200)
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOkResponse({ type: UserDto })
+  async acceptConsent(@CurrentUserId() userId: string): Promise<UserDto> {
     const user = await this.usersService.acceptConsent(userId)
     return this.toUserDto(user)
   }
+
   /**
    * Прислать код подтверждения почты уже вошедшему человеку. Нужен потому, что
    * отзыв подписывается почтой: на неё уходит решение модератора.

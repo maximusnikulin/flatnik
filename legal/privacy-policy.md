@@ -190,4 +190,4 @@
 
 **Никулин Максим Сергеевич**
 Email: **support@flatnik.ru**
-Сайт: `flatnik.ru`
+Сайт: `https://flatnik.ru`
