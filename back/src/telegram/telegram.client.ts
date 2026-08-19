@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger } from '@nestjs/common'
 import type { ConfigType } from '@nestjs/config'
+import { ProxyAgent, fetch as undiciFetch } from 'undici'
 import { telegramConfig } from '../config/telegram.config'
 import { describeCause } from '../common/describe-cause'
 import type { TelegramReplyMarkup, TelegramUpdate } from './telegram.types'
@@ -126,12 +127,22 @@ export class TelegramClient {
     )
 
     try {
-      const response = await fetch(`${API_ROOT}/bot${this.config.botToken}/${method}`, {
+      // undiciFetch используется напрямую (а не global fetch), чтобы передать
+      // dispatcher с ProxyAgent когда api.telegram.org недоступен напрямую
+      // (например, RU VPS под ТСПУ). Без прокси поведение идентично global fetch.
+      const init: Parameters<typeof undiciFetch>[1] & { dispatcher?: ProxyAgent } = {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
         signal: controller.signal,
-      })
+      }
+      if (this.config.proxyUrl) {
+        init.dispatcher = new ProxyAgent(this.config.proxyUrl)
+      }
+      const response = await undiciFetch(
+        `${API_ROOT}/bot${this.config.botToken}/${method}`,
+        init,
+      )
       const parsed: unknown = await response.json()
       if (!response.ok || typeof parsed !== 'object' || parsed === null || !('ok' in parsed)) {
         // description телеграма объясняет причину точнее статуса: неверный токен,

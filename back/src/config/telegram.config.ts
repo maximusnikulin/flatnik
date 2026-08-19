@@ -11,4 +11,7 @@ export const telegramConfig = registerAs('telegram', () => ({
   botToken: process.env.TELEGRAM_BOT_TOKEN ?? '',
   // id чата модератора; узнаётся из лога бота — он пишет id чужого чата в warn
   moderatorChatId: process.env.TELEGRAM_MODERATOR_CHAT_ID ?? '',
+  // HTTP-прокси для окружений, где api.telegram.org заблокирован (например, РФ VPS).
+  // Пример: TELEGRAM_PROXY_URL=http://194.180.188.196:8888
+  proxyUrl: process.env.TELEGRAM_PROXY_URL ?? '',
 }))
