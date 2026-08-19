@@ -44,10 +44,13 @@ export function UserMenu({ onOpenMyReviews }: UserMenuProps) {
 
   return (
     <div className="user-menu">
-      {/* В подсказке — то, чем вошли: телефон, почта или ничего, если ни того
-          ни другого ещё нет (аккаунт всегда заведён чем-то одним) */}
-      <span className="user-menu__nickname" title={me.data.phone ?? me.data.email ?? undefined}>
-        {me.data.nickname}
+      <span className="user-menu__id">
+        {/* Телефон в подсказке остался как есть: почта теперь видна и без
+            наведения, дублировать её в title незачем */}
+        <span className="user-menu__nickname" title={me.data.phone ?? undefined}>
+          {me.data.nickname}
+        </span>
+        {me.data.email && <span className="user-menu__email">{me.data.email}</span>}
       </span>
       <button type="button" className="btn-link" onClick={onOpenMyReviews}>
         Мои отзывы

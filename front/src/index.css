@@ -68,6 +68,37 @@ textarea {
   inset: 0;
 }
 
+.app_map .ymaps3--controls.ymaps3--controls_bottom.ymaps3--controls_left.ymaps3--controls_horizontal {
+  z-index: 1 !important;
+}
+
+/* Собственные контролы карты (зум и т.п.): у Яндекса они по умолчанию
+   заберутся выше .side-panel/.user-panel (z-index 2/3) и будут видны
+   поверх панелей у левого края */
+.ymaps3--controls.ymaps3--controls_bottom.ymaps3--controls_left.ymaps3--controls_horizontal {
+  z-index: 1;
+}
+
+/* Мобильная замена .app__stage: без карты панели идут обычным потоком,
+   а не абсолютом друг над другом */
+.app__home {
+  /* Растягиваемся на весь остаток .app (min-height: 100dvh на мобиле) —
+     иначе при коротком содержимом футер повисал бы сразу под ним,
+     а не прибивался к низу экрана */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+}
+
+.app__home-hint {
+  margin: 0;
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--color-text-secondary);
+}
+
 /* Шапка карты: слева логотип и поиск, справа вход или профиль */
 .map-top {
   display: flex;
@@ -178,9 +209,25 @@ textarea {
   color: var(--color-pin);
 }
 
+.user-menu__id {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
 .user-menu__nickname {
   font-weight: 600;
   /* Ник до 20 символов, но кириллица шире — не даём растянуть шапку */
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-menu__email {
+  font-size: 13px;
+  color: var(--color-text-secondary);
   max-width: 220px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -949,8 +996,15 @@ textarea {
   display: none;
 }
 
-/* Мобильная раскладка: панель снизу поверх карты */
+/* Мобильная раскладка: карты нет, .app__home вместо .app__stage —
+   значит и сам .app снова обычный документ, а не фиксированная 100dvh-сцена */
 @media (max-width: 640px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
   .map-top {
     flex-wrap: wrap;
     gap: 10px 12px;
@@ -962,26 +1016,6 @@ textarea {
     order: 3;
     flex-basis: 100%;
     max-width: none;
-  }
-
-  .side-panel {
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    width: auto;
-  }
-
-  .user-panel {
-    top: 12px;
-    left: 12px;
-    right: 12px;
-    bottom: 12px;
-    width: auto;
-  }
-
-  .floating-panel {
-    max-height: 55dvh;
   }
 
   /* Панель на мобильном занимает весь экран — ссылки прижимаем к её низу

@@ -3,8 +3,15 @@ import type { SuggestResponseItem } from '@yandex/ymaps3-types'
 import { findAddress, useYmaps } from '../lib/ymaps'
 import { useMapStore } from '../model/map.store'
 
-/** Плавающая строка поиска адреса с саджестом Яндекса */
-export function SearchBar() {
+interface SearchBarProps {
+  /** Есть ли на странице карта. Без неё найденную улицу показать негде —
+   *  вместо перелёта камеры остаётся попросить уточнить номер дома */
+  hasMap: boolean
+}
+
+/** Строка поиска адреса с саджестом Яндекса: на карте — плавающая, без карты
+ *  (мобильная главная без MapView) — обычная строка в шапке */
+export function SearchBar({ hasMap }: SearchBarProps) {
   const ymaps = useYmaps()
   const selectedAddress = useMapStore((s) => s.selectedAddress)
   const selectAddress = useMapStore((s) => s.selectAddress)
@@ -61,16 +68,19 @@ export function SearchBar() {
     try {
       const result = await findAddress(query)
       if (result.status === 'found') {
-        // Здания → панель + карта, остальное → только карта
+        // Здания → панель дома (на карте и без неё), остальное — только карте
+        // есть куда перелететь; без неё остаётся попросить уточнить дом
         if (result.kind === 'house') {
           selectAddress(result.address)
-        } else {
+        } else if (hasMap) {
           setMapCenter([result.address.lon, result.address.lat], 17)
           // У улицы панели нет, а значит и selectedAddress не сменится —
           // строку приводим к найденному названию сами, иначе в поле
           // останется обрывок, который набрали до выбора подсказки
           appliedText.current = result.address.address
           setText(result.address.address)
+        } else {
+          setNote('Уточните номер дома — отзывы собираются по конкретным домам.')
         }
       } else if (result.status === 'not-found') {
         setNote('Такой адрес не найден. Уточните улицу и номер дома.')

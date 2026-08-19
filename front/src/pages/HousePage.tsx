@@ -1,14 +1,20 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useNavigate, useParams } from 'react-router-dom'
 import { houseQuery } from '../features/catalog/api/catalog.api'
 import { HouseMap } from '../features/map/ui/HouseMap'
 import { useMapStore } from '../features/map/model/map.store'
+import { useAuthStore } from '../features/auth/model/auth.store'
+import { ReviewFormModal } from '../features/review-form/ui/ReviewFormModal'
+import { useReviewFormStore } from '../features/review-form/model/review-form.store'
+import { useOpenReviewForm } from '../features/review-form/model/use-open-review-form'
 import { ReviewCard, formatDate } from '../features/reviews/ui/ReviewCard'
 import { ApiError } from '../shared/api/fetcher'
 import { cityIn } from '../shared/lib/city-case'
 import { cityUrl, streetUrl } from '../shared/lib/house-url'
 import { useDocumentMeta } from '../shared/lib/use-document-meta'
 import { useInView } from '../shared/lib/use-in-view'
+import { useIsMobile } from '../shared/lib/use-is-mobile'
 import { RatingStars } from '../shared/ui/RatingStars'
 import { ShareButton } from '../shared/ui/ShareButton'
 import { NotFoundPage } from './NotFoundPage'
@@ -18,11 +24,19 @@ import { PageShell, apartmentsWord, formatRating, reviewsWord } from './ui/PageS
 export function HousePage() {
   const { citySlug = '', streetSlug = '', houseSlug = '' } = useParams()
   const navigate = useNavigate()
+  const isMobile = useIsMobile()
   const selectAddress = useMapStore((s) => s.selectAddress)
   const { data, isPending, error } = useQuery(houseQuery(citySlug, streetSlug, houseSlug))
   // Карта грузится, только когда до неё долистали: скрипт Яндекса тяжёлый, а
   // посетитель из поиска пришёл читать отзывы
   const map = useInView<HTMLDivElement>()
+
+  const openAuthModal = useAuthStore((s) => s.openModal)
+  const isFormOpen = useReviewFormStore((s) => s.isOpen)
+  const openReviewForm = useOpenReviewForm()
+  // Новый отзыв на этой странице сразу не покажется — он появится после
+  // модерации, и без объяснения кнопка выглядела бы так, будто ничего не произошло
+  const [justSubmitted, setJustSubmitted] = useState(false)
 
   const title = data ? `${data.streetName}, ${data.houseNumber}` : houseSlug
   useDocumentMeta({
@@ -51,7 +65,8 @@ export function HousePage() {
   ]
 
   return (
-    <PageShell crumbs={crumbs}>
+    <>
+      <PageShell crumbs={crumbs}>
       <h1>
         {title} — отзывы жильцов
       </h1>
@@ -81,18 +96,37 @@ export function HousePage() {
           <div className="page__actions">
             <button
               type="button"
-              className="btn-secondary"
+              className="btn-primary"
               onClick={() => {
-                // Данные для карты уже пришли с этой же страницы — второй запрос
-                // к геокодеру не нужен
-                selectAddress({ address: data.address, lat: data.lat, lon: data.lon })
-                navigate('/')
+                setJustSubmitted(false)
+                openReviewForm({ address: data.address })
               }}
             >
-              Открыть на большой карте
+              Оставить отзыв
             </button>
+            {/* На мобильном карты на «/» больше нет — вести туда некуда */}
+            {!isMobile && (
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={() => {
+                  // Данные для карты уже пришли с этой же страницы — второй запрос
+                  // к геокодеру не нужен
+                  selectAddress({ address: data.address, lat: data.lat, lon: data.lon })
+                  navigate('/')
+                }}
+              >
+                Открыть на большой карте
+              </button>
+            )}
             <ShareButton title={`${title}, ${data.cityName} — отзывы жильцов`} />
           </div>
+
+          {justSubmitted && (
+            <p className="page__note">
+              Отзыв отправлен на проверку — он появится здесь после модерации.
+            </p>
+          )}
 
           {data.apartments.length > 0 && (
             <>
@@ -158,7 +192,16 @@ export function HousePage() {
           )}
         </>
       )}
-    </PageShell>
+      </PageShell>
+
+      {data && isFormOpen && (
+        <ReviewFormModal
+          house={{ address: data.address, lat: data.lat, lon: data.lon }}
+          onCreated={() => setJustSubmitted(true)}
+          onUnauthorized={openAuthModal}
+        />
+      )}
+    </>
   )
 }
 

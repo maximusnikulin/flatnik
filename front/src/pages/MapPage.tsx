@@ -10,22 +10,25 @@ import { UserMenu } from "../features/auth/ui/UserMenu";
 import { useAuthStore } from "../features/auth/model/auth.store";
 import { ReviewFormModal } from "../features/review-form/ui/ReviewFormModal";
 import { useReviewFormStore } from "../features/review-form/model/review-form.store";
-import type { ReviewFormPrefill } from "../features/review-form/model/review-form.store";
+import { useOpenReviewForm } from "../features/review-form/model/use-open-review-form";
 import { Footer } from "../features/legal/ui/Footer";
 import { useDocumentMeta } from "../shared/lib/use-document-meta";
+import { useIsMobile } from "../shared/lib/use-is-mobile";
 import { houseUrl } from "../shared/lib/house-url";
 import { Logo } from "../shared/ui/Logo";
 
 /**
- * Карта: сверху шапка с логотипом, поиском и профилем, под ней слева панели
- * дома, справа отзывы профиля, поверх — модалка отзыва. Фичи не импортируют
- * друг друга; их связывает эта страница.
+ * Карта: сверху шапка с логотипом, поиском и профилем. На десктопе под ней
+ * карта во весь экран и панели дома/квартиры/своих отзывов поверх неё; на
+ * мобильном карты нет вовсе — те же панели идут в потоке под шапкой. Фичи не
+ * импортируют друг друга; их связывает эта страница.
  *
  * Состояние выбора живёт в map.store и в URL не отражается: карта — инструмент,
  * а не документ. Документы — страницы каталога, у них источник истины в адресе.
  */
 export function MapPage() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
 
   const selectedAddress = useMapStore((s) => s.selectedAddress);
   const selectedEntrance = useMapStore((s) => s.selectedEntrance);
@@ -40,14 +43,11 @@ export function MapPage() {
   const openAuthModal = useAuthStore((s) => s.openModal);
 
   const isFormOpen = useReviewFormStore((s) => s.isOpen);
-  const openForm = useReviewFormStore((s) => s.open);
   const openEditForm = useReviewFormStore((s) => s.openEdit);
   const editTarget = useReviewFormStore((s) => s.editTarget);
+  const openReviewForm = useOpenReviewForm();
 
-  // Намерение «открыть форму после входа»; undefined — намерения нет
-  const [pendingPrefill, setPendingPrefill] = useState<ReviewFormPrefill | undefined>(undefined)
-
-  // «Мои отзывы» живут в правой колонке независимо от панелей дома и квартиры
+  // «Мои отзывы» живут в отдельном блоке независимо от панелей дома и квартиры
   const [isMyReviewsOpen, setMyReviewsOpen] = useState(false);
 
   // Квартира, отзыв о которой только что отправлен: публично он появится лишь
@@ -72,21 +72,8 @@ export function MapPage() {
   // поэтому без выбранного дома отзыв не начать
   const handleAddReview = (apartment?: { apartmentNumber: string; entrance: string }) => {
     if (!selectedAddress) return
-    const prefill: ReviewFormPrefill = { address: selectedAddress.address, apartment }
-    if (!token) {
-      setPendingPrefill(prefill)
-      openAuthModal()
-      return
-    }
-    openForm(prefill);
+    openReviewForm({ address: selectedAddress.address, apartment })
   };
-
-  useEffect(() => {
-    if (token && pendingPrefill !== undefined) {
-      openForm(pendingPrefill)
-      setPendingPrefill(undefined)
-    }
-  }, [token, pendingPrefill, openForm]);
 
   // Дом выбран кликом по зданию на карте или из списка в заглушке
   const handleSelectHouse = (house: {
@@ -97,69 +84,89 @@ export function MapPage() {
     selectAddress(house);
   };
 
+  const myReviewsPanel = isMyReviewsOpen && (
+    <MyReviewsPanel
+      onClose={() => setMyReviewsOpen(false)}
+      onGoToHouse={selectAddress}
+      onEdit={openEditForm}
+      activeAddress={selectedAddress?.address ?? null}
+    />
+  );
+
+  const housePanel = selectedAddress && !selectedApartment && (
+    <HousePanel
+      address={selectedAddress.address}
+      entrance={selectedEntrance}
+      onSelectEntrance={selectEntrance}
+      onBackToEntrances={clearEntrance}
+      onSelectApartment={(apartment) =>
+        selectApartment({
+          id: apartment.id,
+          number: apartment.number,
+          entrance: apartment.entrance,
+        })
+      }
+      onOpenHousePage={(slug) => navigate(houseUrl(slug))}
+      onAddReview={() => handleAddReview()}
+    />
+  );
+
+  const reviewsPanel = selectedAddress && selectedApartment && (
+    <ReviewsPanel
+      apartmentId={selectedApartment.id}
+      apartmentNumber={selectedApartment.number}
+      entrance={selectedApartment.entrance}
+      justSubmitted={selectedApartment.id === submittedApartmentId}
+      onBack={clearApartment}
+      onAddReview={() =>
+        handleAddReview({
+          apartmentNumber: selectedApartment.number,
+          entrance: selectedApartment.entrance,
+        })
+      }
+    />
+  );
+
   return (
     <div className="app">
       {/* Шапка в потоке, а не поверх карты: её высота задаёт верх обеих колонок,
           и на узком экране они не наезжают на переносящуюся строку поиска */}
       <header className="map-top">
         <Logo className="map-top__logo" />
-        <SearchBar />
+        <SearchBar hasMap={!isMobile} />
         <div className="map-top__user">
           <UserMenu onOpenMyReviews={() => setMyReviewsOpen((open) => !open)} />
         </div>
       </header>
 
-      <div className="app__stage">
-        <div className="app__map">
-          <MapView onSelectHouse={handleSelectHouse} />
+      {isMobile ? (
+        // Без карты панели идут обычным потоком: сначала свои отзывы (если
+        // открыты), затем дом/квартира по результату поиска, а если ничего
+        // ещё не искали — подсказка вместо пустого экрана
+        <main className="app__home">
+          {myReviewsPanel}
+          {housePanel}
+          {reviewsPanel}
+          {!isMyReviewsOpen && !selectedAddress && (
+            <p className="app__home-hint">
+              Введите улицу и номер дома, чтобы прочитать отзывы жильцов.
+            </p>
+          )}
+        </main>
+      ) : (
+        <div className="app__stage">
+          <div className="app__map">
+            <MapView onSelectHouse={handleSelectHouse} />
+          </div>
+
+          <aside className="user-panel">{myReviewsPanel}</aside>
+
+          <aside className="side-panel">
+            {housePanel}
+            {reviewsPanel}
+          </aside>
         </div>
-
-        <aside className="user-panel">
-          {isMyReviewsOpen && (
-            <MyReviewsPanel
-              onClose={() => setMyReviewsOpen(false)}
-              onGoToHouse={selectAddress}
-              onEdit={openEditForm}
-              activeAddress={selectedAddress?.address ?? null}
-            />
-          )}
-        </aside>
-
-        <aside className="side-panel">
-          {selectedAddress && !selectedApartment && (
-            <HousePanel
-              address={selectedAddress.address}
-              entrance={selectedEntrance}
-              onSelectEntrance={selectEntrance}
-              onBackToEntrances={clearEntrance}
-              onSelectApartment={(apartment) =>
-                selectApartment({
-                  id: apartment.id,
-                  number: apartment.number,
-                  entrance: apartment.entrance,
-                })
-              }
-              onOpenHousePage={(slug) => navigate(houseUrl(slug))}
-              onAddReview={() => handleAddReview()}
-            />
-          )}
-          {selectedAddress && selectedApartment && (
-            <ReviewsPanel
-              apartmentId={selectedApartment.id}
-              apartmentNumber={selectedApartment.number}
-              entrance={selectedApartment.entrance}
-              justSubmitted={selectedApartment.id === submittedApartmentId}
-              onBack={clearApartment}
-              onAddReview={() =>
-                handleAddReview({
-                  apartmentNumber: selectedApartment.number,
-                  entrance: selectedApartment.entrance,
-                })
-              }
-            />
-          )}
-        </aside>
-      </div>
+      )}
 
       <Footer />
 
