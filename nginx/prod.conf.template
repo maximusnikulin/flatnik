@@ -26,12 +26,21 @@ server {
     listen 80;
     server_name _;
 
+    # Docker DNS: резолвит имена сервисов (back, db, …) внутри compose-сети.
+    # valid=30s — TTL кеша; после пересоздания контейнера nginx подхватит
+    # новый IP максимум через 30 секунд, а не висит с нерабочим адресом до
+    # рестарта (именно это приводило к 502 после docker compose up --build back).
+    # Переменная $back_upstream нужна: только с переменной nginx использует
+    # resolver при каждом запросе, а не резолвит один раз при старте.
+    resolver 127.0.0.11 valid=30s ipv6=off;
+    set $back_upstream "http://back:${BACK_PORT}";
+
     root /srv/static;
     index index.html;
 
     # /api — в NestJS. Объявлено до location /, чтобы SPA-фоллбэк его не перехватил.
     location /api/ {
-        proxy_pass http://back:${BACK_PORT};
+        proxy_pass $back_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -44,7 +53,7 @@ server {
     # Карта сайта: поисковики ищут её по этому адресу, а бэкенд весь под /api.
     location = /sitemap.xml {
         rewrite ^ /api/seo/sitemap.xml break;
-        proxy_pass http://back:${BACK_PORT};
+        proxy_pass $back_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-Proto $fwd_proto;
     }
@@ -71,10 +80,8 @@ server {
     }
 
     location @seo {
-        # rewrite + proxy_pass без URI — единственная рабочая связка: proxy_pass
-        # с переменной потребовал бы resolver, которого в prod-шаблоне нет.
         rewrite ^(/.*)$ /api/seo/page$1 break;
-        proxy_pass http://back:${BACK_PORT};
+        proxy_pass $back_upstream;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
