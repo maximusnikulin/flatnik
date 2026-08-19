@@ -62,6 +62,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
       TELEGRAM_MODERATOR_CHAT_ID: ${TELEGRAM_MODERATOR_CHAT_ID:-}
+      TELEGRAM_PROXY_URL: ${TELEGRAM_PROXY_URL:-}
       SEO_INDEX_HTML: /srv/static/index.html
       # /api/docs наружу не отдаём: документация API — не публичная страница
       SWAGGER_UI: ${SWAGGER_UI:-off}
