@@ -17,11 +17,7 @@ import { useAuthStore } from '../model/auth.store'
 export const authKeys = {
   all: queryKeyRoots.auth,
   me: () => [...queryKeyRoots.auth, 'me'] as const,
-  session: (login: string) => [...queryKeyRoots.auth, 'session', login] as const,
 }
-
-/** Как часто спрашиваем, подтвердил ли человек вход на телефоне */
-const SESSION_POLL_MS = 3000
 
 /** Профиль текущего пользователя; запрашивается только с токеном */
 export const meQuery = (enabled: boolean) =>
@@ -32,8 +28,9 @@ export const meQuery = (enabled: boolean) =>
   })
 
 /**
- * Финал входа, общий для обоих исходов: и подтверждение на SIM-карте, и код
- * из SMS приводят к одному и тому же — токен в сторе, профиль в кеше.
+ * Финал входа: токен в сторе, профиль в кеше. Вынесен отдельно, потому что
+ * попадают сюда не только из формы — сюда же приходит любой будущий способ
+ * входа, который бэкенд закончит выдачей токена.
  */
 function acceptSession(
   queryClient: QueryClient,
@@ -46,10 +43,11 @@ function acceptSession(
   queryClient.setQueryData(authKeys.me(), data.user)
   void queryClient.invalidateQueries({ queryKey: queryKeyRoots.auth })
 
-  // Согласие отмечено галочкой ещё до запроса кода — без неё вход не
-  // начинается вовсе, — но до этого момента его некуда было сохранять:
-  // эндпоинт требует токен. Отсюда и оба пути входа накрыты одним местом,
-  // а новый пользователь не встречает блокирующее окно сразу после входа.
+  // Согласие человек дал ещё до запроса кода — нажатием кнопки, о чём
+  // сказано прямо под ней, — но сохранить его было некуда: эндпоинт требует
+  // токен. Поэтому запись идёт здесь, где оба пути входа уже сошлись.
+  // Сюда же попадают аккаунты, заведённые до появления согласия: у них
+  // consentAccepted false, и дата проставится при первом же входе.
   if (!data.user.consentAccepted) {
     void recordConsent(queryClient)
   }
@@ -57,22 +55,22 @@ function acceptSession(
 
 /**
  * Сохранить согласие на сервере. Сбой не рвёт вход: токен уже выдан, а
- * непринятое согласие поднимет блокирующее окно, где его можно принять
- * повторно.
+ * несохранённая дата — повод повторить запись при следующем входе, но не
+ * повод не пускать человека внутрь.
  */
 async function recordConsent(queryClient: QueryClient): Promise<void> {
   try {
     const user = await api.post<CurrentUser>('/api/auth/me/consent')
     queryClient.setQueryData(authKeys.me(), user)
   } catch {
-    // Молча: за нас доработает ConsentGate
+    // Молча: следующий вход попробует записать снова
   }
 }
 
 /**
- * Шаг 1: начать вход. В ответе только секрет сессии — подтвердят вход на
- * SIM-карте или придёт код в SMS, на этом шаге ещё неизвестно; это скажет
- * опрос статуса.
+ * Шаг 1: начать вход. Письмо с кодом уходит уже здесь, поэтому дальше форма
+ * сразу просит код. Секрет сессии в ответе остаётся ради телефонного входа,
+ * который бэкенд по-прежнему умеет, — почте он не нужен.
  */
 export function useRequestCodeMutation() {
   return useMutation({
@@ -81,33 +79,9 @@ export function useRequestCodeMutation() {
   })
 }
 
-/**
- * Шаг 2: опрос статуса, пока человек подтверждает вход на телефоне. Он же
- * сообщает, что провайдер перешёл на код в SMS (`needs-code`). Интервал живёт
- * рядом с запросом, а не в компоненте: опрос прекращается по самому ответу,
- * и разносить эти два условия незачем.
- */
-export const authSessionQuery = (login: string, sessionId: string, enabled: boolean) =>
-  queryOptions({
-    queryKey: authKeys.session(login),
-    queryFn: () => api.post<SessionStatus>('/api/auth/session', { login, sessionId }),
-    enabled,
-    refetchInterval: (query) => (query.state.data?.status === 'pending' ? SESSION_POLL_MS : false),
-    // Ответ живёт ровно одну попытку входа: между попытками он бесполезен,
-    // а показанный из кеша «confirmed» закрыл бы модалку без входа
-    gcTime: 0,
-    staleTime: 0,
-  })
 
-/** Принять подтверждённую сессию: токен в стор, профиль в кеш */
-export function useAcceptSession() {
-  const queryClient = useQueryClient()
-  const setToken = useAuthStore((s) => s.setToken)
-  return (data: { accessToken: string; user: CurrentUser }) =>
-    acceptSession(queryClient, setToken, data)
-}
 
-/** Шаг 3 (если провайдер перешёл на SMS): обменять код из SMS на JWT */
+/** Шаг 2: обменять код из письма на JWT */
 export function useVerifyCodeMutation() {
   const queryClient = useQueryClient()
   const setToken = useAuthStore((s) => s.setToken)

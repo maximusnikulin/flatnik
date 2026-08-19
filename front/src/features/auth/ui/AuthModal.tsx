@@ -2,28 +2,23 @@ import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ApiError } from '../../../shared/api/fetcher'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
-import { formatPhone, isPhoneComplete, toE164 } from '../../../shared/lib/phone'
 import { PRIVACY_POLICY_URL, USER_AGREEMENT_URL } from '../../../shared/lib/contacts'
-import { detectLoginKind, isLoginComplete, toLogin } from '../../../shared/lib/login'
-import { LoginInput } from '../../../shared/ui/LoginInput'
+import { isEmailComplete, normalizeEmail } from '../../../shared/lib/login'
 import { useAuthStore } from '../model/auth.store'
 import {
-  authSessionQuery,
   meQuery,
-  useAcceptSession,
   useRequestCodeMutation,
   useSetNicknameMutation,
   useVerifyCodeMutation,
 } from '../api/auth.api'
 
 /**
- * Вход по телефону: телефон → подтверждение → никнейм.
+ * Вход по почте: адрес → код из письма → никнейм.
  *
- * Подтверждений два вида, и выбирает его провайдер уже после запроса, поэтому
- * второй шаг всегда начинается с ожидания. Мобильная авторизация приходит на
- * SIM-карту — вводить нечего, фронт опрашивает статус. Если SIM-PUSH не
- * сработал, провайдер присылает код в SMS и сообщает об этом статусом
- * `needs-code` — тогда шаг превращается в поле ввода.
+ * Вход по телефону убран из интерфейса, хотя бэкенд его по-прежнему умеет:
+ * мобильная авторизация приходила на SIM-карту, и с ней второй шаг начинался
+ * с ожидания и опроса статуса. Почтовому коду ждать нечего — письмо уходит
+ * прямо на запросе, — поэтому ни ожидания, ни опроса здесь больше нет.
  *
  * Третий шаг обязателен и появляется не только сразу после регистрации:
  * ник выдаётся автоматически, а флаг nicknameConfirmed остаётся false, пока
@@ -36,48 +31,28 @@ export function AuthModal() {
   const token = useAuthStore((s) => s.token)
 
   const me = useQuery(meQuery(Boolean(token)))
-  // Пока условия не приняты, поверх висит ConsentGate: две неотменяемые
-  // модалки одновременно — выбор ника подождёт до согласия
   const mustChooseNickname =
-    Boolean(token) &&
-    me.data !== undefined &&
-    me.data.consentAccepted &&
-    !me.data.nicknameConfirmed
+    Boolean(token) && me.data !== undefined && !me.data.nicknameConfirmed
 
-  // Ввод храним дважды: как он выглядит в поле и как десять цифр телефона.
-  // Второе нужно только телефонной ветке — из маски цифры иначе не достать
   const [login, setLogin] = useState('')
-  const [digits, setDigits] = useState('')
   const [code, setCode] = useState('')
   const [nickname, setNickname] = useState('')
-  const [step, setStep] = useState<'login' | 'waiting' | 'code'>('login')
-  const [isConsentChecked, setConsentChecked] = useState(false)
-
-  // Секрет сессии: без него бэкенд не отдаст статус чужого входа
-  const [sessionId, setSessionId] = useState('')
+  const [step, setStep] = useState<'login' | 'code'>('login')
   const [sessionNote, setSessionNote] = useState('')
 
-  const kind = detectLoginKind(login)
-  const loginValue = toLogin(login, digits)
+  const loginValue = normalizeEmail(login)
 
-  /** Полный сброс ввода: и поле, и цифры телефона, и шаг */
+  /** Полный сброс ввода: и поле, и код, и шаг */
   const resetLogin = () => {
     setLogin('')
-    setDigits('')
     setCode('')
-    setSessionId('')
     setStep('login')
   }
 
   const requestCode = useRequestCodeMutation()
   const verifyCode = useVerifyCodeMutation()
   const setNicknameMutation = useSetNicknameMutation()
-  const acceptSession = useAcceptSession()
   const captcha = useCaptcha()
-
-  const session = useQuery(
-    authSessionQuery(loginValue, sessionId, step === 'waiting' && sessionId !== ''),
-  )
 
   // Подставляем выданный автоматически ник — его видно и можно оставить как есть.
   // Один раз на пользователя: иначе очищённое поле тут же заполнялось бы снова.
@@ -89,80 +64,45 @@ export function AuthModal() {
     }
   }, [mustChooseNickname, me.data])
 
-  // Ответ опроса обрабатываем один раз: эффект перезапускается на каждый рендер
-  // родителя, а второй вызов acceptSession обнулял бы кеш профиля впустую
-  const handledSession = useRef(false)
-  useEffect(() => {
-    const result = session.data
-    if (!result || handledSession.current) return
-
-    if (result.status === 'confirmed' && result.accessToken && result.user) {
-      handledSession.current = true
-      acceptSession({ accessToken: result.accessToken, user: result.user })
-      resetLogin()
-      // Новому пользователю ник ещё выбирать: модалка останется открытой
-      // на третьем шаге, её удержит mustChooseNickname
-      if (result.user.nicknameConfirmed) closeModal()
-      return
-    }
-
-    // SIM-PUSH не сработал: провайдер прислал код в SMS, дальше обычный ввод
-    if (result.status === 'needs-code') {
-      handledSession.current = true
-      setStep('code')
-      return
-    }
-
-    if (result.status === 'failed') {
-      handledSession.current = true
-      setSessionId('')
-      setStep('login')
-      setSessionNote('Вход не подтверждён. Запросите его заново.')
-      return
-    }
-
-    if (result.status === 'expired') {
-      handledSession.current = true
-      setSessionId('')
-      setStep('login')
-      setSessionNote('Время на подтверждение вышло, запросите вход заново')
-    }
-  }, [session.data, acceptSession, closeModal])
+  // Номер попытки входа. Закрытие формы обесценивает начатый запрос: ответ на
+  // него может прийти минутой позже, и его колбэки не должны переставлять шаг
+  // у формы, которую человек уже сбросил и открыл заново
+  const attempt = useRef(0)
 
   if (!isModalOpen && !mustChooseNickname) return null
 
   // Пока показывается задание капчи, запроса ещё нет — но кнопку уже держим
   // заблокированной, иначе второй клик откроет второе задание
   const isRequesting = captcha.isRunning || requestCode.isPending
-  const canRequest = !isRequesting && isLoginComplete(login, digits) && isConsentChecked
+  const canRequest = !isRequesting && isEmailComplete(login)
   const requestLabel = captcha.isRunning
     ? 'Подтвердите, что вы не робот'
     : requestCode.isPending
       ? 'Запрашиваем…'
-      : 'Войти'
+      : 'Получить код'
 
   // Капча до запроса: она защищает от спама платными авторизациями, поэтому
   // задание должно быть пройдено раньше, чем бэкенд пойдёт к провайдеру
   const handleRequest = async (event: React.FormEvent) => {
     event.preventDefault()
 
+    const startedAttempt = attempt.current
     const captchaResult = await captcha.getToken()
     if (!captchaResult.ok) return
 
     requestCode.mutate(
       { login: loginValue, captchaToken: captchaResult.token },
       {
-        onSuccess: (started) => {
+        onSuccess: () => {
+          if (attempt.current !== startedAttempt) return
           setSessionNote('')
-          setSessionId(started.sessionId)
-          handledSession.current = false
           verifyCode.reset()
           setCode('')
-          // Всегда ожидание: подтвердят на SIM-карте или придёт код в SMS —
-          // на этом шаге ещё неизвестно, это скажет опрос статуса
-          setStep('waiting')
+          // Письмо ушло ещё на запросе, ждать нечего — сразу поле для кода
+          setStep('code')
         },
         onError: (error) => {
+          if (attempt.current !== startedAttempt) return
           // 429 — не отказ, а «код уже отправлен»: попытка живёт пять минут,
           // а пауза между запросами минуту. Заявка заведена, код у человека
           // на руках, и verify-code примет его по тому же идентификатору —
@@ -201,13 +141,30 @@ export function AuthModal() {
 
   /** Вернуться к вводу: начатая попытка на бэкенде истечёт сама */
   const backToLogin = () => {
-    setSessionId('')
     setSessionNote('')
     setStep('login')
   }
 
+  /**
+   * Закрытие сбрасывает форму целиком.
+   *
+   * Компонент при закрытии не размонтируется — модалка живёт в Layout и просто
+   * перестаёт рендериться, — поэтому состояние переживает закрытие. Долгий
+   * запрос кода или показанное задание капчи иначе встречали бы человека
+   * заблокированной кнопкой при следующем открытии.
+   */
+  const closeAndReset = () => {
+    attempt.current += 1
+    closeModal()
+    resetLogin()
+    setSessionNote('')
+    captcha.reset()
+    requestCode.reset()
+    verifyCode.reset()
+  }
+
   // Закрыть можно всё, кроме обязательного выбора ника
-  const dismiss = mustChooseNickname ? undefined : closeModal
+  const dismiss = mustChooseNickname ? undefined : closeAndReset
 
   if (mustChooseNickname) {
     return (
@@ -249,7 +206,7 @@ export function AuthModal() {
     <div className="modal-overlay" onClick={dismiss}>
       <div className="modal -narrow" onClick={(event) => event.stopPropagation()}>
         <header className="modal__header">
-          <h2>Вход</h2>
+          <h2>Вход в Квартирник</h2>
           <button type="button" className="modal__close" onClick={dismiss} aria-label="Закрыть">
             ✕
           </button>
@@ -258,21 +215,18 @@ export function AuthModal() {
         {step === 'login' && (
           <form onSubmit={handleRequest} className="modal__body">
             <label className="field">
-              <span className="field__label">Телефон или email</span>
-              <LoginInput
+              <span className="field__label">Email</span>
+              <input
+                type="email"
                 value={login}
-                onChange={(next, nextDigits) => {
-                  setLogin(next)
-                  setDigits(nextDigits)
-                }}
+                onChange={(event) => setLogin(event.target.value)}
+                placeholder="you@example.com"
+                inputMode="email"
+                autoComplete="email"
                 autoFocus
                 required
               />
             </label>
-            <p className="panel-note">
-              Вход по телефону сейчас работает нестабильно — если код не приходит,
-              войдите по почте.
-            </p>
             {captcha.isDisabled && (
               <p className="panel-note -error">
                 Капча выключена: не задан <code>VITE_SMARTCAPTCHA_CLIENT_KEY</code>. Вход
@@ -283,60 +237,36 @@ export function AuthModal() {
             {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
             {sessionNote && <p className="form-error">{sessionNote}</p>}
             {requestCode.error && <p className="form-error">{requestCode.error.message}</p>}
-            {/* Согласие обязательно: без него аккаунт не создаётся. Ссылки
-                открываются в новой вкладке, чтобы не потерять начатый вход */}
-            <label className="field-check">
-              <input
-                type="checkbox"
-                checked={isConsentChecked}
-                onChange={(event) => setConsentChecked(event.target.checked)}
-                required
-              />
-              <span>
-                Я принимаю{' '}
-                <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
-                  пользовательское соглашение
-                </a>{' '}
-                и даю согласие на{' '}
-                <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
-                  обработку персональных данных
-                </a>
-              </span>
-            </label>
             <button type="submit" className="btn-primary" disabled={!canRequest}>
               {requestLabel}
             </button>
-          </form>
-        )}
-
-        {step === 'waiting' && (
-          <div className="modal__body">
+            {/* Согласие даётся самим действием, а не галочкой, поэтому текст
+                стоит вплотную к кнопке и называет её словами. Документы —
+                двумя отдельными ссылками: это разные документы, и открываются
+                они в новой вкладке, чтобы не потерять введённый логин */}
             <p className="panel-note">
-              Подтвердите вход на телефоне {formatPhone(digits)}: запрос придёт на SIM-карту.
-              Как только подтвердите, окно закроется само. Если подтверждение не дойдёт,
-              пришлём код в SMS и попросим его ввести.
+              Нажимая «Получить код», вы принимаете{' '}
+              <a href={USER_AGREEMENT_URL} target="_blank" rel="noopener noreferrer">
+                Пользовательское соглашение
+              </a>{' '}
+              и подтверждаете, что ознакомлены с{' '}
+              <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
+                Политикой обработки персональных данных
+              </a>
+              .
             </p>
-            <p className="panel-note">Ждём подтверждения…</p>
-            {session.error && <p className="form-error">{session.error.message}</p>}
-            <button type="button" className="btn-link" onClick={backToLogin}>
-              Изменить телефон
-            </button>
-          </div>
+          </form>
         )}
 
         {step === 'code' && (
           <form onSubmit={handleVerify} className="modal__body">
-            <p className="panel-note">
-              {kind === 'email'
-                ? `Отправили код на ${loginValue}.`
-                : `Отправили код в SMS на ${formatPhone(digits)}.`}
-            </p>
+            <p className="panel-note">Отправили код на {loginValue}.</p>
             <label className="field">
-              <span className="field__label">{kind === 'email' ? 'Код из письма' : 'Код из SMS'}</span>
+              <span className="field__label">Код из письма</span>
               <input
                 value={code}
                 onChange={(event) => setCode(event.target.value)}
-                placeholder={kind === 'email' ? '123456' : '1234'}
+                placeholder="123456"
                 inputMode="numeric"
                 pattern="\d{4,8}"
                 autoFocus
@@ -348,7 +278,7 @@ export function AuthModal() {
               {verifyCode.isPending ? 'Проверяем…' : 'Войти'}
             </button>
             <button type="button" className="btn-link" onClick={backToLogin}>
-              {kind === 'email' ? 'Изменить почту' : 'Изменить телефон'}
+              Изменить почту
             </button>
           </form>
         )}

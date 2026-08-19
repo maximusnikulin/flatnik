@@ -53,6 +53,9 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
   // профиль здесь уже в кеше
   const me = useQuery(meQuery(true))
   const email = me.data?.email ?? null
+  // Отзыв подписывается ником, а не именем или телефоном. Человек должен
+  // видеть это до отправки, а не узнавать из опубликованного отзыва
+  const nickname = me.data?.nickname ?? null
 
   const { editTarget } = form
   const isEditing = editTarget !== null
@@ -247,6 +250,10 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           {captcha.errorMessage && <p className="form-error">{captcha.errorMessage}</p>}
           {mutation.error && !(mutation.error instanceof ApiError && mutation.error.status === 401) && (
             <p className="form-error">{mutation.error.message}</p>
+          )}
+
+          {nickname !== null && (
+            <p className="panel-note">Отзыв будет размещён от имени {nickname}.</p>
           )}
 
           <button type="submit" className="btn-primary" disabled={isBusy}>

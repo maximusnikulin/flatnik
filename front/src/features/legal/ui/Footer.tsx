@@ -4,6 +4,7 @@ import {
   mailtoUrl,
 } from '../../../shared/lib/contacts'
 import { SupportButton } from './SupportButton'
+import { useCookieConsent, useIsCookieSettingsShown } from '../model/cookie-consent.store'
 
 /**
  * Подвал страниц каталога.
@@ -16,6 +17,9 @@ import { SupportButton } from './SupportButton'
  * и те же ссылки живут в `LegalLinks` внизу боковой панели.
  */
 export function Footer() {
+  const reopenCookieBanner = useCookieConsent((s) => s.reopen)
+  const isCookieSettingsShown = useIsCookieSettingsShown()
+
   return (
     <footer className="page__footer">
       <div className="page__footer-inner">
@@ -28,6 +32,11 @@ export function Footer() {
             Политика обработки персональных данных
           </a>
           <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами</a>
+          {isCookieSettingsShown && (
+            <button type="button" onClick={reopenCookieBanner}>
+              Настройки cookie
+            </button>
+          )}
         </nav>
       </div>
     </footer>

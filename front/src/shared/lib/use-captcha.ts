@@ -58,6 +58,19 @@ export function useCaptcha() {
     }
   }, [sitekey])
 
+  /**
+   * Снять начатое задание и очистить состояние. Нужно при закрытии формы:
+   * компонент при этом не размонтируется, поэтому эффект-очистка не сработает,
+   * и незакрытая капча встретила бы человека заблокированной кнопкой при
+   * следующем открытии.
+   */
+  const reset = useCallback(() => {
+    abortRef.current?.abort()
+    abortRef.current = null
+    setRunning(false)
+    setErrorMessage(null)
+  }, [])
+
   return {
     /** Слот в форме, куда рендерится задание капчи */
     containerRef,
@@ -68,5 +81,6 @@ export function useCaptcha() {
     /** Текст ошибки для `.form-error`; null, пока сбоя не было */
     errorMessage,
     getToken,
+    reset,
   }
 }

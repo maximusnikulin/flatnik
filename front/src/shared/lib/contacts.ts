@@ -12,6 +12,8 @@ export const SUPPORT_EMAIL = 'support@flatnik.ru'
 
 export const USER_AGREEMENT_URL = '/legal/user-agreement.pdf'
 export const PRIVACY_POLICY_URL = '/legal/privacy-policy.pdf'
+/** Разъяснение про cookie: на него ведёт «Подробнее» в баннере */
+export const COOKIE_CONSENT_URL = '/legal/consent-cookies.pdf'
 
 /**
  * Ссылка `mailto:` с заполненными темой и телом письма.

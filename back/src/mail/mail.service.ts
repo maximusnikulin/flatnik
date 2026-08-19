@@ -9,6 +9,14 @@ import { describeCause } from '../common/describe-cause'
 const UNAVAILABLE_MESSAGE = 'Не удалось отправить письмо, попробуйте ещё раз'
 
 /**
+ * Потолок на отправку письма. Форма входа ждёт ответа этого запроса, а по
+ * умолчанию nodemailer готов ждать SMTP минутами — столько же висела бы и
+ * форма. Телефонная ветка и капча ограничены так же (10 и 5 секунд), почта
+ * до сих пор была единственной ветвью входа без границы.
+ */
+const SEND_TIMEOUT_MS = 5_000
+
+/**
  * Отправка писем через SMTP.
  *
  * Без заданного хоста работает вхолостую: письмо целиком уходит в лог. Это
@@ -49,7 +57,7 @@ export class MailService {
     }
 
     try {
-      await this.transport().sendMail({ from: this.config.from, to, subject, text })
+      await this.withDeadline(this.transport().sendMail({ from: this.config.from, to, subject, text }))
     } catch (error) {
       // Причина у nodemailer прячется в cause, как и у fetch: без неё в логе
       // остаётся только бесполезное «Error»
@@ -60,12 +68,42 @@ export class MailService {
     this.logger.log(`Письмо отправлено на ${to}: ${subject}`)
   }
 
+  /**
+   * Общая граница ожидания. Таймауты транспорта ниже считаются пофазно —
+   * соединение, приветствие, молчание сокета, — и в сумме дали бы втрое
+   * больше; форме же нужна именно общая граница.
+   */
+  private async withDeadline<T>(work: Promise<T>): Promise<T> {
+    // Проигравшая гонку отправка продолжает жить: без этого её отказ всплыл бы
+    // как unhandled rejection уже после того, как мы ответили пользователю
+    work.catch(() => undefined)
+
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`SMTP не ответил за ${SEND_TIMEOUT_MS} мс`)),
+        SEND_TIMEOUT_MS,
+      )
+    })
+
+    try {
+      return await Promise.race([work, deadline])
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   private transport(): Transporter {
     this.transporter ??= createTransport({
       host: this.config.host,
       port: this.config.port,
       secure: this.config.secure,
       auth: { user: this.config.user, pass: this.config.password },
+      // Пофазные таймауты нужны не ради границы ожидания — её держит
+      // withDeadline, — а чтобы брошенное соединение закрылось, а не висело
+      connectionTimeout: SEND_TIMEOUT_MS,
+      greetingTimeout: SEND_TIMEOUT_MS,
+      socketTimeout: SEND_TIMEOUT_MS,
     })
     return this.transporter
   }
