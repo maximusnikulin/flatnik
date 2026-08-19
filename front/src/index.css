@@ -373,7 +373,8 @@ textarea {
   border: none;
   outline: none;
   padding: 8px 4px;
-  font-size: 15px;
+  /* 16px — минимум, при котором iOS Safari не зумирует при фокусе */
+  font-size: 16px;
   background: transparent;
 }
 
@@ -859,6 +860,20 @@ textarea {
   gap: 14px;
 }
 
+.modal__support .support-button {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.modal__body > p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.modal__btn-close {
+  margin-top: 20px
+}
+
 /* Поля форм */
 .field {
   display: flex;
@@ -955,7 +970,8 @@ textarea {
   border: 1px solid transparent;
   border-radius: var(--radius-control);
   background: var(--color-surface-muted);
-  font-size: 15px;
+  /* 16px — минимум, при котором iOS Safari не зумирует при фокусе */
+  font-size: 16px;
   outline: none;
   width: 100%;
 }
