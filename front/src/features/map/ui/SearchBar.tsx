@@ -5,7 +5,8 @@ import { useMapStore } from '../model/map.store'
 
 interface SearchBarProps {
   /** Есть ли на странице карта. Без неё найденную улицу показать негде —
-   *  вместо перелёта камеры остаётся попросить уточнить номер дома */
+   *  вместо перелёта камеры остаётся попросить уточнить номер дома.
+   *  На мобильном (hasMap=false) input заменяется на textarea с авторесайзом */
   hasMap: boolean
 }
 
@@ -26,6 +27,9 @@ export function SearchBar({ hasMap }: SearchBarProps) {
   /** Строка, которую поиск уже применил: по ней саджест открываться не должен,
    *  иначе список выскакивает снова сразу после выбора подсказки */
   const appliedText = useRef('')
+
+  /** Ref на textarea (только на мобильном, hasMap=false) для авторесайза */
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   // Выбор адреса извне (клик по пину) отражается в строке поиска
   useEffect(() => {
@@ -61,6 +65,15 @@ export function SearchBar({ hasMap }: SearchBarProps) {
       window.clearTimeout(handle)
     }
   }, [text, ymaps.status])
+
+  // Авторесайз textarea (мобильный): пересчитываем высоту при каждом изменении
+  // текста — в том числе при внешнем обновлении (выбор из саджеста, клик на пин)
+  useEffect(() => {
+    if (hasMap || !textareaRef.current) return
+    const el = textareaRef.current
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [text, hasMap])
 
   const applyFound = async (query: { text: string }) => {
     setSearching(true)
@@ -111,6 +124,26 @@ export function SearchBar({ hasMap }: SearchBarProps) {
     }
   }
 
+  /** Курсор в конец при фокусе — пользователю проще дописать номер дома */
+  const handleFocus = (e: React.FocusEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const el = e.currentTarget
+    const len = el.value.length
+    // requestAnimationFrame нужен для iOS Safari: браузер иногда сбрасывает
+    // позицию курсора после того как выставила его родительская логика фокуса
+    requestAnimationFrame(() => el.setSelectionRange(len, len))
+  }
+
+  /** Enter в textarea не добавляет перенос строки — отправляет форму */
+  const handleTextareaKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (ymaps.status === 'ready' && text.trim().length >= 3) {
+        void applyFound({ text: text.trim() })
+        setItems([])
+      }
+    }
+  }
+
   const handleClear = () => {
     // Сбрасываем и здесь: если адрес не был выбран, эффект на selectedAddress
     // не сработает и применённая строка осталась бы от прошлого поиска
@@ -133,13 +166,30 @@ export function SearchBar({ hasMap }: SearchBarProps) {
           />
         </svg>
       </span>
-      <input
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-        placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
-        disabled={!isReady || isSearching}
-        aria-label="Адрес дома"
-      />
+      {hasMap ? (
+        <input
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onFocus={handleFocus}
+          placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
+          disabled={!isReady || isSearching}
+          aria-label="Адрес дома"
+        />
+      ) : (
+        /* На мобильном — textarea с авторесайзом: адрес виден целиком даже если
+           не влезает в одну строку; Enter не переносит строку, а запускает поиск */
+        <textarea
+          ref={textareaRef}
+          rows={1}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+          onFocus={handleFocus}
+          onKeyDown={handleTextareaKeyDown}
+          placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
+          disabled={!isReady || isSearching}
+          aria-label="Адрес дома"
+        />
+      )}
       <button type="submit" className="search-bar__icon" disabled={!isReady} aria-label="Найти">
         <svg viewBox="0 0 24 24" width="18" height="18">
           <path

@@ -378,6 +378,20 @@ textarea {
   background: transparent;
 }
 
+/* На мобильном input заменяется textarea — стили совпадают с input */
+.search-bar textarea {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  padding: 8px 4px;
+  font-size: 16px;
+  background: transparent;
+  resize: none;
+  overflow: hidden;
+  line-height: 1.4;
+}
+
 .search-bar__icon {
   display: flex;
   align-items: center;
@@ -1034,11 +1048,58 @@ textarea {
     max-width: none;
   }
 
+  /* Никнейм прижимаем к левому краю: убираем авто-отступ, который толкал его вправо */
+  .map-top__user {
+    margin-left: 0;
+  }
+
   /* Панель на мобильном занимает весь экран — ссылки прижимаем к её низу
      и держим в одну строку, чтобы не отъедать место у карточек */
   .legal-links {
     padding: 6px 10px;
     gap: 2px 10px;
+  }
+
+  /* Модалка на мобильном — bottom-sheet: занимает всю ширину, вырастает снизу */
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal {
+    width: 100%;
+    max-height: 92dvh;
+    border-radius: 20px 20px 0 0;
+    padding: 0;
+    /* overflow-y на самом .modal убираем — скролл ведёт .modal__body */
+    overflow-y: visible;
+  }
+
+  .modal__header {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--color-surface);
+    border-radius: 20px 20px 0 0;
+    margin-bottom: 0;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .modal__body {
+    padding: 16px 20px 32px;
+    overflow-y: auto;
+    max-height: calc(92dvh - 65px);
+  }
+
+  /* Период съёма: два поля месяца в столбик, без тире между ними */
+  .modal__body .field > .field-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .modal__body .field > .field-row .field-row__dash {
+    display: none;
   }
 }
 
