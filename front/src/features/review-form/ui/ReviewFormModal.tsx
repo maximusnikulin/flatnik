@@ -253,7 +253,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           )}
 
           {nickname !== null && (
-            <p className="panel-note">Отзыв будет размещён от имени {nickname}.</p>
+            <p className="panel-note">Отзыв будет размещён от имени <strong>{nickname}</strong>.</p>
           )}
 
           <button type="submit" className="btn-primary" disabled={isBusy}>
