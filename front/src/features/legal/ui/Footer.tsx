@@ -1,5 +1,6 @@
 import {
   PRIVACY_POLICY_URL,
+  SUPPORT_EMAIL,
   USER_AGREEMENT_URL,
   mailtoUrl,
 } from '../../../shared/lib/contacts'
@@ -31,7 +32,7 @@ export function Footer() {
           <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
             Политика обработки персональных данных
           </a>
-          <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами</a>
+          <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами: {SUPPORT_EMAIL}</a>
           {isCookieSettingsShown && (
             <button type="button" onClick={reopenCookieBanner}>
               Настройки cookie

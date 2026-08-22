@@ -1,5 +1,6 @@
 import {
   PRIVACY_POLICY_URL,
+  SUPPORT_EMAIL,
   USER_AGREEMENT_URL,
   mailtoUrl,
 } from '../../../shared/lib/contacts'
@@ -23,7 +24,7 @@ export function LegalLinks() {
       <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
         Персональные данные
       </a>
-      <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться</a>
+      <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться: {SUPPORT_EMAIL}</a>
       {isCookieSettingsShown && (
         <button type="button" onClick={reopenCookieBanner}>
           Cookie

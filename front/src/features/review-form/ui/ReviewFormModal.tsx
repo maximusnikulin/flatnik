@@ -267,7 +267,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
 
           <p className="panel-note">
             Если что-то не работает или есть замечания —{' '}
-            <a href={`mailto:${SUPPORT_EMAIL}`} className="panel-note__link">пишите нам</a>.
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="panel-note__link">пишите нам: {SUPPORT_EMAIL}</a>.
           </p>
 
           <button type="submit" className="btn-primary" disabled={isBusy}>
