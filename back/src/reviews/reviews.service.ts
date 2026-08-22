@@ -1,9 +1,10 @@
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
-  TooManyRequestsException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { DataSource, MoreThanOrEqual, Repository } from 'typeorm'
@@ -98,7 +99,7 @@ export class ReviewsService {
       where: { authorId: userId, createdAt: MoreThanOrEqual(todayStart) },
     })
     if (todayCount >= 3) {
-      throw new TooManyRequestsException('Вы можете оставить не более 3 отзывов в сутки')
+      throw new HttpException('Вы можете оставить не более 3 отзывов в сутки', HttpStatus.TOO_MANY_REQUESTS)
     }
 
     // Сетевой вызов — до транзакции, чтобы не держать соединение с БД
