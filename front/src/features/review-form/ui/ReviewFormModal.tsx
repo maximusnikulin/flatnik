@@ -8,9 +8,11 @@ import { useCreateReviewMutation } from '../api/create-review'
 import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
 import { EgrnInput } from '../../../shared/ui/EgrnInput'
+import { RegRecordInput } from '../../../shared/ui/RegRecordInput'
 import { MonthInput } from '../../../shared/ui/MonthInput'
 import { RatingInput } from '../../../shared/ui/RatingInput'
 import { MIN_MONTH, currentMonth } from '../../../shared/lib/month'
+import { SUPPORT_EMAIL } from '../../../shared/lib/contacts'
 
 /** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
 const TEXT_MAX_LENGTH = 500
@@ -35,10 +37,13 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
       entrance: s.entrance,
       periodFrom: s.periodFrom,
       periodTo: s.periodTo,
+      ownershipProofType: s.ownershipProofType,
       egrn: s.egrn,
+      regRecord: s.regRecord,
       text: s.text,
       rating: s.rating,
       setField: s.setField,
+      setOwnershipProofType: s.setOwnershipProofType,
       setRating: s.setRating,
       close: s.close,
       reset: s.reset,
@@ -74,8 +79,17 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
     const captchaResult = await captcha.getToken()
     if (!captchaResult.ok) return
 
-    const { apartmentNumber, entrance, periodFrom, periodTo, egrn, text, rating } =
-      useReviewFormStore.getState()
+    const {
+      apartmentNumber,
+      entrance,
+      periodFrom,
+      periodTo,
+      ownershipProofType,
+      egrn,
+      regRecord,
+      text,
+      rating,
+    } = useReviewFormStore.getState()
 
     // Кнопка отправки заблокирована без оценки, но состояние читается заново —
     // сузить тип надо и здесь
@@ -105,7 +119,9 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
         lon: house.lon,
         apartmentNumber,
         entrance,
-        egrn,
+        // Одно из двух полей всегда будет заполнено — форма блокирует отправку иначе
+        egrn: ownershipProofType === 'egrn' ? egrn : '',
+        regRecord: ownershipProofType === 'regRecord' ? regRecord : undefined,
         text,
         rating,
         periodFrom: periodFrom || undefined,
@@ -193,17 +209,46 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
             </div>
           </div>
 
-          {/* Кадастровый номер подтверждает право на первый отзыв о квартире
-              и при правке не меняется — поэтому в режиме правки поля нет */}
+          {/* Подтверждение права: кадастровый номер или рег. запись.
+              При правке не меняется — поля нет в режиме редактирования */}
           {!isEditing && (
-            <label className="field">
-              <span className="field__label">Кадастровый номер из выписки ЕГРН</span>
-              <EgrnInput
-                value={form.egrn}
-                onChange={(egrn) => form.setField('egrn', egrn)}
-                required
-              />
-            </label>
+            <div className="field">
+              <span className="field__label">Подтверждение права собственности</span>
+              <div className="ownership-proof-tabs" role="group">
+                <button
+                  type="button"
+                  className={`ownership-proof-tab${form.ownershipProofType === 'egrn' ? ' -active' : ''}`}
+                  onClick={() => form.setOwnershipProofType('egrn')}
+                >
+                  Кадастровый номер
+                </button>
+                <button
+                  type="button"
+                  className={`ownership-proof-tab${form.ownershipProofType === 'regRecord' ? ' -active' : ''}`}
+                  onClick={() => form.setOwnershipProofType('regRecord')}
+                >
+                  Рег. запись права
+                </button>
+              </div>
+              {form.ownershipProofType === 'egrn' ? (
+                <EgrnInput
+                  value={form.egrn}
+                  onChange={(egrn) => form.setField('egrn', egrn)}
+                  required
+                />
+              ) : (
+                <RegRecordInput
+                  value={form.regRecord}
+                  onChange={(v) => form.setField('regRecord', v)}
+                  required
+                />
+              )}
+              <span className="field__hint">
+                {form.ownershipProofType === 'egrn'
+                  ? 'Из выписки ЕГРН, вид 77:01:0001075:1234'
+                  : 'Из выписки ЕГРН, вид 77:01:0003036:1308-77/011/2018-1'}
+              </span>
+            </div>
           )}
 
           <div className="field">
@@ -231,7 +276,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           {/* Почта уже подтверждена — просто напоминаем, куда придёт ответ.
               Иначе просим подтвердить: без неё отправку не разблокируем */}
           {!isEditing && email !== null && (
-            <p className="panel-note">Статус отзыва отправим на почту {email}.</p>
+            <p className="panel-note">Статус отзыва отправим на почту <strong>{email}</strong>.</p>
           )}
           {needsEmail && <EmailConfirmField />}
 
@@ -255,6 +300,11 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           {nickname !== null && (
             <p className="panel-note">Отзыв будет размещён от имени <strong>{nickname}</strong>.</p>
           )}
+
+          <p className="panel-note">
+            Если что-то не работает или есть замечания —{' '}
+            <a href={`mailto:${SUPPORT_EMAIL}`} className="panel-note__link">пишите нам</a>.
+          </p>
 
           <button type="submit" className="btn-primary" disabled={isBusy}>
             {captcha.isRunning

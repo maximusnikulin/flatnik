@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator'
 import { HouseSlugsDto } from '../houses/houses.dto'
 import { ReviewStatus } from './review-status'
@@ -76,14 +77,28 @@ export class CreateReviewDto {
   /**
    * Кадастровый номер из выписки ЕГРН: округ:район:квартал:объект.
    * Квартал — шесть или семь цифр, номер объекта — от одной.
-   * Тот же формат задаёт маска поля на фронте.
+   * Обязателен, если не передана `regRecord`.
    */
-  @ApiProperty({ example: '77:01:0001075:1234' })
+  @ApiProperty({ required: false, example: '77:01:0001075:1234' })
+  @ValidateIf((o: CreateReviewDto) => !o.regRecord)
   @Transform(trimmed)
   @Matches(/^\d{2}:\d{2}:\d{6,7}:\d{1,10}$/, {
     message: 'Кадастровый номер — в формате 77:01:0001075:1234',
   })
-  egrn!: string
+  egrn?: string
+
+  /**
+   * Запись регистрации права из выписки ЕГРН.
+   * Формат: {кадастровый_номер}-{регион}/{отдел}/{год}-{порядковый_номер}.
+   * Обязательна, если не передан `egrn`.
+   */
+  @ApiProperty({ required: false, example: '77:01:0003036:1308-77/011/2018-1' })
+  @ValidateIf((o: CreateReviewDto) => !o.egrn)
+  @Transform(trimmed)
+  @Matches(/^\d{2}:\d{2}:\d{6,7}:\d{1,10}-\d{2}\/\d{3}\/\d{4}-\d{1,7}$/, {
+    message: 'Запись регистрации — в формате 77:01:0003036:1308-77/011/2018-1',
+  })
+  regRecord?: string
 
   /** Текст отзыва */
   @Transform(trimmed)

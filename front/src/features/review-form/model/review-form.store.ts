@@ -10,6 +10,7 @@ export type ReviewFormField =
   | 'periodFrom'
   | 'periodTo'
   | 'egrn'
+  | 'regRecord'
   | 'text'
 
 export interface ReviewFormPrefill {
@@ -41,7 +42,11 @@ interface ReviewFormState {
   entrance: string
   periodFrom: string
   periodTo: string
+  /** Тип подтверждения права: кадастровый номер или рег. запись */
+  ownershipProofType: 'egrn' | 'regRecord'
   egrn: string
+  /** Регистрационная запись права — альтернатива кадастровому номеру */
+  regRecord: string
   text: string
   /** Оценка 1–5; null — пользователь ещё не выбрал, отправка заблокирована */
   rating: number | null
@@ -49,6 +54,8 @@ interface ReviewFormState {
   /** Правка своего отзыва: черновик заполняется его текущим содержимым */
   openEdit: (review: MyReview) => void
   setField: (field: ReviewFormField, value: string) => void
+  /** Переключатель типа подтверждения права */
+  setOwnershipProofType: (type: 'egrn' | 'regRecord') => void
   /** Оценка живёт отдельно от setField: там значение всегда строка */
   setRating: (rating: number) => void
   /** Закрыть, сохранив черновик (например, поверх открылась модалка входа) */
@@ -62,7 +69,9 @@ const emptyDraft = {
   entrance: '',
   periodFrom: '',
   periodTo: '',
+  ownershipProofType: 'egrn' as const,
   egrn: '',
+  regRecord: '',
   text: '',
   rating: null,
 }
@@ -74,7 +83,9 @@ function toDraft(state: ReviewFormState): ReviewDraft {
     entrance: state.entrance,
     periodFrom: state.periodFrom,
     periodTo: state.periodTo,
+    ownershipProofType: state.ownershipProofType,
     egrn: state.egrn,
+    regRecord: state.regRecord,
     text: state.text,
     rating: state.rating,
   }
@@ -127,13 +138,19 @@ export const useReviewFormStore = create<ReviewFormState>((set, get) => {
         entrance: review.entrance,
         periodFrom: review.periodFrom ?? '',
         periodTo: review.periodTo ?? '',
-        // ЕГРН не правится и в PATCH не уходит; поле в форме показывается пустым
+        // ЕГРН/рег.запись не правится и в PATCH не уходит; поле в форме показывается пустым
+        ownershipProofType: 'egrn' as const,
         egrn: '',
+        regRecord: '',
         text: review.text,
         rating: review.rating,
       }),
     setField: (field, value) => {
       set((state) => ({ ...state, [field]: value }))
+      persist()
+    },
+    setOwnershipProofType: (type) => {
+      set({ ownershipProofType: type })
       persist()
     },
     setRating: (rating) => {

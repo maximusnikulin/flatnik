@@ -499,6 +499,15 @@ textarea {
   color: var(--color-pin);
 }
 
+.panel-note__link {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.panel-note__link:hover {
+  text-decoration: underline;
+}
+
 .panel-list {
   display: flex;
   flex-direction: column;
@@ -906,6 +915,42 @@ textarea {
   align-self: flex-end;
   font-size: 13px;
   color: var(--color-text-secondary);
+}
+
+/* Подсказка под инпутом — мелкий серый текст */
+.field__hint {
+  font-size: 13px;
+  color: var(--color-text-secondary);
+}
+
+/* Переключатель «Кадастровый номер / Рег. запись права» */
+.ownership-proof-tabs {
+  display: flex;
+  gap: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.ownership-proof-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  background: var(--color-surface-muted);
+  color: var(--color-text-secondary);
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.ownership-proof-tab + .ownership-proof-tab {
+  border-left: 1px solid var(--color-border);
+}
+
+.ownership-proof-tab.-active {
+  background: var(--color-primary);
+  color: #fff;
 }
 
 /* Текст только для скринридеров: убирать его display: none нельзя — они его не прочитают */

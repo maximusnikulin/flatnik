@@ -16,7 +16,11 @@ export interface ReviewDraft {
   entrance: string
   periodFrom: string
   periodTo: string
+  /** Тип подтверждения права: кадастровый номер или рег. запись */
+  ownershipProofType: 'egrn' | 'regRecord'
   egrn: string
+  /** Регистрационная запись права — альтернатива кадастровому номеру */
+  regRecord: string
   text: string
   rating: number | null
 }
