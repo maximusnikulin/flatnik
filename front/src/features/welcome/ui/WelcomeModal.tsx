@@ -8,7 +8,7 @@ export function WelcomeModal() {
   if (!isOpen) return null
 
   return (
-    <div className="modal-overlay" onClick={dismiss}>
+    <div className="modal-overlay" onClick={dismiss} data-nosnippet>
       <div className="modal" onClick={(event) => event.stopPropagation()}>
         <header className="modal__header">
           <h2>Привет! Пара слов, прежде чем вы начнёте</h2>
