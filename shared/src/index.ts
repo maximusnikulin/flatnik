@@ -43,12 +43,14 @@ export type ReviewStatus = Schemas['ReviewStatus']
 export type Review = Schemas['ReviewDto']
 export type MyReview = Schemas['MyReviewDto']
 /**
- * Расширяем сгенерированный DTO: бэкенд принимает либо egrn, либо regRecord
- * (регистрационную запись права вида 77:01:0003036:1308-77/011/2018-1).
- * Когда OpenAPI-схема будет обновлена — убрать ручное расширение.
+ * Бэкенд принимает либо egrn (кадастровый номер), либо regRecord
+ * (запись регистрации права вида 77:01:0003036:1308-77/011/2018-1).
+ * egrn сделан optional; когда OpenAPI-схема будет обновлена — убрать ручное расширение.
  */
-export type CreateReviewRequest = Schemas['CreateReviewDto'] & {
-  /** Регистрационная запись права — альтернатива кадастровому номеру */
+export type CreateReviewRequest = Omit<Schemas['CreateReviewDto'], 'egrn'> & {
+  /** Кадастровый номер из выписки ЕГРН — опционален, если передана regRecord */
+  egrn?: string
+  /** Запись регистрации права — альтернатива кадастровому номеру */
   regRecord?: string
 }
 export type UpdateReviewRequest = Schemas['UpdateReviewDto']

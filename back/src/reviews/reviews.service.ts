@@ -3,9 +3,10 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  TooManyRequestsException,
 } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
-import { DataSource, Repository } from 'typeorm'
+import { DataSource, MoreThanOrEqual, Repository } from 'typeorm'
 import { CaptchaService } from '../captcha/captcha.service'
 import { toHouseSlugsDto } from '../houses/houses.dto'
 import { HousesService } from '../houses/houses.service'
@@ -90,6 +91,16 @@ export class ReviewsService {
       throw new BadRequestException('Подтвердите почту — на неё придёт решение модератора')
     }
 
+    // Не более 3 отзывов в сутки — до капчи, чтобы не тратить токены впустую
+    const todayStart = new Date()
+    todayStart.setHours(0, 0, 0, 0)
+    const todayCount = await this.reviews.count({
+      where: { authorId: userId, createdAt: MoreThanOrEqual(todayStart) },
+    })
+    if (todayCount >= 3) {
+      throw new TooManyRequestsException('Вы можете оставить не более 3 отзывов в сутки')
+    }
+
     // Сетевой вызов — до транзакции, чтобы не держать соединение с БД
     await this.captchaService.validate(dto.captchaToken, ip)
 
@@ -105,11 +116,23 @@ export class ReviewsService {
         entrance: dto.entrance,
       })
 
+      // Один пользователь — один отзыв на квартиру; проверяем внутри транзакции,
+      // чтобы исключить гонку с конкурентными запросами
+      const existing = await em.findOne(Review, {
+        where: { authorId: userId, apartmentId: apartment.id },
+      })
+      if (existing) {
+        throw new ConflictException('Вы уже оставляли отзыв на эту квартиру')
+      }
+
       const review = await em.save(
         em.create(Review, {
           apartmentId: apartment.id,
           authorId: userId,
-          egrn: dto.egrn,
+          // Принимаем кадастровый номер или рег. запись права; оба варианта
+          // хранятся в одном поле — формат однозначно различимый (рег. запись
+          // содержит дефис после кадастрового номера)
+          egrn: (dto.egrn ?? dto.regRecord)!,
           text: dto.text,
           rating: dto.rating,
           periodFrom: toStoredDate(dto.periodFrom),

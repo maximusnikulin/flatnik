@@ -7,6 +7,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  Unique,
   UpdateDateColumn,
 } from 'typeorm'
 import { Apartment } from '../houses/apartment.entity'
@@ -14,6 +15,7 @@ import { User } from '../users/user.entity'
 import { ReviewStatus } from './review-status'
 
 /** Отзыв о съёме конкретной квартиры */
+@Unique(['authorId', 'apartmentId'])
 @Entity('reviews')
 @Check('"rating" IS NULL OR ("rating" BETWEEN 1 AND 5)')
 // Все публичные выборки — отзывы квартиры со статусом confirmed: и панель

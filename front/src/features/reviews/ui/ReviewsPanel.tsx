@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { apartmentReviewsQuery } from '../api/reviews.api'
+import { useAuthStore } from '../../auth/model/auth.store'
+import { apartmentReviewsQuery, myReviewsQuery } from '../api/reviews.api'
 import { ReviewCard } from './ReviewCard'
 
 interface ReviewsPanelProps {
@@ -22,6 +23,9 @@ export function ReviewsPanel({
   onAddReview,
 }: ReviewsPanelProps) {
   const { data, isPending, error } = useQuery(apartmentReviewsQuery(apartmentId))
+  const token = useAuthStore((s) => s.token)
+  const { data: myReviews } = useQuery(myReviewsQuery(!!token))
+  const alreadyReviewed = myReviews?.some((r) => r.apartmentId === apartmentId) ?? false
 
   return (
     <section className="floating-panel">
@@ -54,9 +58,11 @@ export function ReviewsPanel({
           </div>
         ))}
 
-      <button type="button" className="btn-primary" onClick={onAddReview}>
-        Добавить отзыв
-      </button>
+      {!alreadyReviewed && (
+        <button type="button" className="btn-primary" onClick={onAddReview}>
+          Добавить отзыв
+        </button>
+      )}
     </section>
   )
 }

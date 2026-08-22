@@ -7,8 +7,8 @@ import { useReviewFormStore } from '../model/review-form.store'
 import { useCreateReviewMutation } from '../api/create-review'
 import { useUpdateReviewMutation } from '../api/update-review'
 import { useCaptcha } from '../../../shared/lib/use-captcha'
-import { EgrnInput } from '../../../shared/ui/EgrnInput'
 import { RegRecordInput } from '../../../shared/ui/RegRecordInput'
+import { InfoTooltip } from '../../../shared/ui/InfoTooltip'
 import { MonthInput } from '../../../shared/ui/MonthInput'
 import { RatingInput } from '../../../shared/ui/RatingInput'
 import { MIN_MONTH, currentMonth } from '../../../shared/lib/month'
@@ -37,13 +37,10 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
       entrance: s.entrance,
       periodFrom: s.periodFrom,
       periodTo: s.periodTo,
-      ownershipProofType: s.ownershipProofType,
-      egrn: s.egrn,
       regRecord: s.regRecord,
       text: s.text,
       rating: s.rating,
       setField: s.setField,
-      setOwnershipProofType: s.setOwnershipProofType,
       setRating: s.setRating,
       close: s.close,
       reset: s.reset,
@@ -79,17 +76,8 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
     const captchaResult = await captcha.getToken()
     if (!captchaResult.ok) return
 
-    const {
-      apartmentNumber,
-      entrance,
-      periodFrom,
-      periodTo,
-      ownershipProofType,
-      egrn,
-      regRecord,
-      text,
-      rating,
-    } = useReviewFormStore.getState()
+    const { apartmentNumber, entrance, periodFrom, periodTo, regRecord, text, rating } =
+      useReviewFormStore.getState()
 
     // Кнопка отправки заблокирована без оценки, но состояние читается заново —
     // сузить тип надо и здесь
@@ -119,9 +107,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
         lon: house.lon,
         apartmentNumber,
         entrance,
-        // Одно из двух полей всегда будет заполнено — форма блокирует отправку иначе
-        egrn: ownershipProofType === 'egrn' ? egrn : '',
-        regRecord: ownershipProofType === 'regRecord' ? regRecord : undefined,
+        regRecord,
         text,
         rating,
         periodFrom: periodFrom || undefined,
@@ -154,10 +140,12 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
         </header>
 
         <form className="modal__body" onSubmit={handleSubmit}>
-          <label className="field">
+          <div className="field">
             <span className="field__label">Адрес</span>
-            <input value={address} readOnly />
-          </label>
+            {/* div вместо input: адрес может быть длинным, а input обрезает
+                текст в одну строку и не растягивается под содержимое */}
+            <div className="field__readonly">{address}</div>
+          </div>
 
           <div className="field-row">
             <label className="field">
@@ -209,46 +197,22 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
             </div>
           </div>
 
-          {/* Подтверждение права: кадастровый номер или рег. запись.
+          {/* Запись регистрации права подтверждает владение квартирой.
               При правке не меняется — поля нет в режиме редактирования */}
           {!isEditing && (
-            <div className="field">
-              <span className="field__label">Подтверждение права собственности</span>
-              <div className="ownership-proof-tabs" role="group">
-                <button
-                  type="button"
-                  className={`ownership-proof-tab${form.ownershipProofType === 'egrn' ? ' -active' : ''}`}
-                  onClick={() => form.setOwnershipProofType('egrn')}
-                >
-                  Кадастровый номер
-                </button>
-                <button
-                  type="button"
-                  className={`ownership-proof-tab${form.ownershipProofType === 'regRecord' ? ' -active' : ''}`}
-                  onClick={() => form.setOwnershipProofType('regRecord')}
-                >
-                  Рег. запись права
-                </button>
-              </div>
-              {form.ownershipProofType === 'egrn' ? (
-                <EgrnInput
-                  value={form.egrn}
-                  onChange={(egrn) => form.setField('egrn', egrn)}
-                  required
-                />
-              ) : (
-                <RegRecordInput
-                  value={form.regRecord}
-                  onChange={(v) => form.setField('regRecord', v)}
-                  required
-                />
-              )}
-              <span className="field__hint">
-                {form.ownershipProofType === 'egrn'
-                  ? 'Из выписки ЕГРН, вид 77:01:0001075:1234'
-                  : 'Из выписки ЕГРН, вид 77:01:0003036:1308-77/011/2018-1'}
+            <label className="field">
+              <span className="field__label field__label--with-tooltip">
+                Запись регистрации права из выписки ЕГРН
+                <InfoTooltip>
+                  {`77:01 — округ и район (по 2 цифры)\n0001011 — квартал (6 или 7 цифр, 7-я необязательна)\n1101 — объект (1–10 цифр)\n— разделитель\n77 — регион (2 цифры)\n/011/ — отдел Росреестра (3 цифры)\n2011 — год (4 цифры)\n-1 — порядковый номер записи (1–7 цифр)`}
+                </InfoTooltip>
               </span>
-            </div>
+              <RegRecordInput
+                value={form.regRecord}
+                onChange={(v) => form.setField('regRecord', v)}
+                required
+              />
+            </label>
           )}
 
           <div className="field">
