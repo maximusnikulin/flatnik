@@ -645,6 +645,10 @@ textarea {
   color: var(--color-pending);
 }
 
+.review-card__trust .info-tooltip {
+  margin-left: 4px;
+}
+
 /* Причина отклонения от модератора; видит только автор отзыва */
 .review-card__reason {
   margin: 0;
