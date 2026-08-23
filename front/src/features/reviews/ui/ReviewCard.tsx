@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { ReactNode } from 'react'
 import type { Review } from '@flatnik/shared'
 import { RatingStars } from '../../../shared/ui/RatingStars'
+import { InfoTooltip } from '../../../shared/ui/InfoTooltip'
 import { formatMonth } from '../../../shared/lib/month'
 
 /** Свыше этого порога текст сворачивается кнопкой «Раскрыть» */
@@ -65,7 +66,12 @@ export function ReviewCard({
     <article className={isActive ? 'review-card -active' : 'review-card'}>
       <StatusLine status={review.status} />
       {review.trustLevel === 'low' && (
-        <p className="review-card__trust -low">⚠ Запись регистрации права не указана</p>
+        <p className="review-card__trust -low">
+          ⚠ Запись регистрации права не указана
+          <InfoTooltip>
+            Отзыв с низким доверием: пользователь не указал запись регистрации права, которая фигурирует в договорах аренды.
+          </InfoTooltip>
+        </p>
       )}
       {rejectionReason && (
         <p className="review-card__reason">
