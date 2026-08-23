@@ -51,10 +51,12 @@ export function renderReview(review: {
   createdAt: string
   text: string
   rating: number | null
+  trustLevel: 'high' | 'low'
 }): string {
   const date = review.createdAt.slice(0, 10)
   return `<article class="review-card">
   <p class="review-card__status -confirmed">✓ Отзыв подтверждён</p>
+  ${review.trustLevel === 'low' ? '<p class="review-card__trust -low">⚠ Запись регистрации права не указана</p>' : ''}
   <p class="review-card__header">
     <span class="review-card__author">${escapeHtml(review.authorName)}</span>
     <span class="review-card__place">кв. ${escapeHtml(review.apartmentNumber)}, подъезд ${escapeHtml(review.entrance)}</span>

@@ -26,8 +26,8 @@ interface ReviewFormModalProps {
   onUnauthorized: () => void
 }
 
-/** Модалка отзыва: адрес, квартира, период, ЕГРН, текст. В режиме правки
- *  меняются только текст и период — остальное определяет уже созданный отзыв */
+/** Модалка отзыва: адрес, квартира, период, запись регистрации права, текст.
+ *  В режиме правки меняются только текст и период — остальное определяет уже созданный отзыв */
 export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewFormModalProps) {
   const form = useReviewFormStore(
     useShallow((s) => ({
@@ -107,7 +107,7 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
         lon: house.lon,
         apartmentNumber,
         entrance,
-        regRecord,
+        regRecord: regRecord || undefined,
         text,
         rating,
         periodFrom: periodFrom || undefined,
@@ -202,15 +202,14 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           {!isEditing && (
             <label className="field">
               <span className="field__label field__label--with-tooltip">
-                Запись регистрации права из выписки ЕГРН
+                Запись регистрации права. Указывается в договоре аренды.
                 <InfoTooltip>
-                  {`77:01 — округ и район (по 2 цифры)\n0001011 — квартал (6 или 7 цифр, 7-я необязательна)\n1101 — объект (1–10 цифр)\n— разделитель\n77 — регион (2 цифры)\n/011/ — отдел Росреестра (3 цифры)\n2011 — год (4 цифры)\n-1 — порядковый номер записи (1–7 цифр)`}
+                  {`77:01 — округ и район (по 2 цифры)\n0001011 — квартал (6 или 7 цифр, 7-я необязательна)\n1101 — объект (1–10 цифр)\n— разделитель\n77 — регион (2 цифры)\n/011/ — отдел Росреестра (3 цифры)\n2011 — год (4 цифры)\n-1 — порядковый номер записи (1–7 цифр)\n\nУказывается в договоре на аренду.\n\nЕсли не указать — отзыв будет помечен как с низким доверием.`}
                 </InfoTooltip>
               </span>
               <RegRecordInput
                 value={form.regRecord}
                 onChange={(v) => form.setField('regRecord', v)}
-                required
               />
             </label>
           )}

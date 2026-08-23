@@ -23,7 +23,7 @@ function formatPeriod(review: ReviewCardData): string | null {
 }
 
 /** Общая часть отзыва квартиры и своего отзыва — всё, что рисует карточка */
-export type ReviewCardData = Pick<Review, 'status' | 'text' | 'rating' | 'periodFrom' | 'periodTo'>
+export type ReviewCardData = Pick<Review, 'status' | 'text' | 'rating' | 'periodFrom' | 'periodTo' | 'trustLevel'>
 
 interface ReviewCardProps {
   review: ReviewCardData
@@ -64,6 +64,9 @@ export function ReviewCard({
   return (
     <article className={isActive ? 'review-card -active' : 'review-card'}>
       <StatusLine status={review.status} />
+      {review.trustLevel === 'low' && (
+        <p className="review-card__trust -low">⚠ Запись регистрации права не указана</p>
+      )}
       {rejectionReason && (
         <p className="review-card__reason">
           <span className="review-card__reason-label">Причина:</span> {rejectionReason}

@@ -138,7 +138,7 @@ export const useReviewFormStore = create<ReviewFormState>((set, get) => {
         entrance: review.entrance,
         periodFrom: review.periodFrom ?? '',
         periodTo: review.periodTo ?? '',
-        // ЕГРН/рег.запись не правится и в PATCH не уходит; поле в форме показывается пустым
+        // Запись регистрации права не правится и в PATCH не уходит; поле в форме показывается пустым
         ownershipProofType: 'egrn' as const,
         egrn: '',
         regRecord: '',

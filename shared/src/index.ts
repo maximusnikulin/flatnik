@@ -42,17 +42,7 @@ export type HouseReview = Schemas['HouseReviewDto']
 export type ReviewStatus = Schemas['ReviewStatus']
 export type Review = Schemas['ReviewDto']
 export type MyReview = Schemas['MyReviewDto']
-/**
- * Бэкенд принимает либо egrn (кадастровый номер), либо regRecord
- * (запись регистрации права вида 77:01:0003036:1308-77/011/2018-1).
- * egrn сделан optional; когда OpenAPI-схема будет обновлена — убрать ручное расширение.
- */
-export type CreateReviewRequest = Omit<Schemas['CreateReviewDto'], 'egrn'> & {
-  /** Кадастровый номер из выписки ЕГРН — опционален, если передана regRecord */
-  egrn?: string
-  /** Запись регистрации права — альтернатива кадастровому номеру */
-  regRecord?: string
-}
+export type CreateReviewRequest = Schemas['CreateReviewDto']
 export type UpdateReviewRequest = Schemas['UpdateReviewDto']
 export type ReviewCreated = Schemas['ReviewCreatedDto']
 

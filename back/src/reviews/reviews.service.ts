@@ -15,6 +15,7 @@ import { UsersService } from '../users/users.service'
 import { ModerationService } from './moderation.service'
 import { Review } from './review.entity'
 import { ReviewStatus } from './review-status'
+import { trustLevel } from './review-trust'
 import type {
   CreateReviewDto,
   MyReviewDto,
@@ -133,7 +134,7 @@ export class ReviewsService {
           // Принимаем кадастровый номер или рег. запись права; оба варианта
           // хранятся в одном поле — формат однозначно различимый (рег. запись
           // содержит дефис после кадастрового номера)
-          egrn: (dto.egrn ?? dto.regRecord)!,
+          egrn: dto.egrn ?? dto.regRecord ?? null,
           text: dto.text,
           rating: dto.rating,
           periodFrom: toStoredDate(dto.periodFrom),
@@ -216,6 +217,7 @@ export class ReviewsService {
       rating: review.rating,
       periodFrom: toMonth(review.periodFrom),
       periodTo: toMonth(review.periodTo),
+      trustLevel: trustLevel(review.egrn),
       createdAt: review.createdAt.toISOString(),
     }))
   }
@@ -241,6 +243,7 @@ export class ReviewsService {
       periodFrom: toMonth(review.periodFrom),
       periodTo: toMonth(review.periodTo),
       rejectionReason: review.rejectionReason,
+      trustLevel: trustLevel(review.egrn),
       createdAt: review.createdAt.toISOString(),
       updatedAt: review.updatedAt.toISOString(),
       apartmentId: review.apartmentId,

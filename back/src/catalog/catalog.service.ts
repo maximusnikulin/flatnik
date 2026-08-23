@@ -5,6 +5,7 @@ import { Apartment } from '../houses/apartment.entity'
 import { House } from '../houses/house.entity'
 import { Review } from '../reviews/review.entity'
 import { ReviewStatus } from '../reviews/review-status'
+import { trustLevel } from '../reviews/review-trust'
 import type {
   CityListItemDto,
   CityPageDto,
@@ -297,6 +298,7 @@ export class CatalogService {
         rating: review.rating,
         periodFrom: review.periodFrom ? review.periodFrom.slice(0, 7) : null,
         periodTo: review.periodTo ? review.periodTo.slice(0, 7) : null,
+        trustLevel: trustLevel(review.egrn),
         createdAt: review.createdAt.toISOString(),
         apartmentId: review.apartmentId,
         apartmentNumber: review.apartment.number,

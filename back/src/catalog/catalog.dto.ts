@@ -2,6 +2,7 @@ import { ApiProperty } from '@nestjs/swagger'
 import { Type } from 'class-transformer'
 import { IsInt, IsOptional, Min } from 'class-validator'
 import { ReviewStatus } from '../reviews/review-status'
+import type { TrustLevel } from '../reviews/review-trust'
 
 /** Постраничная выборка списков каталога */
 export class PageQueryDto {
@@ -105,6 +106,13 @@ export class HouseReviewDto {
 
   @ApiProperty({ type: String, nullable: true, example: '2025-04' })
   periodTo!: string | null
+
+  /**
+   * Уровень доверия: high — предоставлена запись регистрации права,
+   * low — запись не указана или указан только кадастровый номер.
+   */
+  @ApiProperty({ enum: ['high', 'low'] })
+  trustLevel!: TrustLevel
 
   /** Дата создания, ISO 8601 */
   createdAt!: string

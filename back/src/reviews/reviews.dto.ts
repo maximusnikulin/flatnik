@@ -10,8 +10,8 @@ import {
   MaxLength,
   Min,
   MinLength,
-  ValidateIf,
 } from 'class-validator'
+import { REG_RECORD_PATTERN, type TrustLevel } from './review-trust'
 import { HouseSlugsDto } from '../houses/houses.dto'
 import { ReviewStatus } from './review-status'
 
@@ -75,12 +75,12 @@ export class CreateReviewDto {
   entrance!: string
 
   /**
-   * Кадастровый номер из выписки ЕГРН: округ:район:квартал:объект.
+   * Кадастровый номер: округ:район:квартал:объект.
    * Квартал — шесть или семь цифр, номер объекта — от одной.
-   * Обязателен, если не передана `regRecord`.
+   * Опционален; если не передан ни он, ни `regRecord`, отзыв получает низкий уровень доверия.
    */
   @ApiProperty({ required: false, example: '77:01:0001075:1234' })
-  @ValidateIf((o: CreateReviewDto) => !o.regRecord)
+  @IsOptional()
   @Transform(trimmed)
   @Matches(/^\d{2}:\d{2}:\d{6,7}:\d{1,10}$/, {
     message: 'Кадастровый номер — в формате 77:01:0001075:1234',
@@ -88,14 +88,14 @@ export class CreateReviewDto {
   egrn?: string
 
   /**
-   * Запись регистрации права из выписки ЕГРН.
+   * Запись регистрации права.
    * Формат: {кадастровый_номер}-{регион}/{отдел}/{год}-{порядковый_номер}.
-   * Обязательна, если не передан `egrn`.
+   * Опциональна; при наличии даёт отзыву высокий уровень доверия.
    */
   @ApiProperty({ required: false, example: '77:01:0003036:1308-77/011/2018-1' })
-  @ValidateIf((o: CreateReviewDto) => !o.egrn)
+  @IsOptional()
   @Transform(trimmed)
-  @Matches(/^\d{2}:\d{2}:\d{6,7}:\d{1,10}-\d{2}\/\d{3}\/\d{4}-\d{1,7}$/, {
+  @Matches(REG_RECORD_PATTERN, {
     message: 'Запись регистрации — в формате 77:01:0003036:1308-77/011/2018-1',
   })
   regRecord?: string
@@ -191,6 +191,13 @@ export class ReviewDto {
   @ApiProperty({ type: String, nullable: true, example: '2025-04' })
   periodTo!: string | null
 
+  /**
+   * Уровень доверия: high — предоставлена запись регистрации права,
+   * low — запись не указана или указан только кадастровый номер.
+   */
+  @ApiProperty({ enum: ['high', 'low'] })
+  trustLevel!: TrustLevel
+
   /** Дата создания, ISO 8601 */
   createdAt!: string
 }
@@ -245,6 +252,13 @@ export class MyReviewDto {
   /** Части URL публичной страницы дома; null — адрес не разобрался */
   @ApiProperty({ type: HouseSlugsDto, nullable: true })
   slug!: HouseSlugsDto | null
+
+  /**
+   * Уровень доверия: high — предоставлена запись регистрации права из ЕГРН,
+   * low — указан только кадастровый номер или ЕГРН не указан вовсе.
+   */
+  @ApiProperty({ enum: ['high', 'low'] })
+  trustLevel!: TrustLevel
 
   /** Широта дома — к этой точке перелетает карта */
   lat!: number

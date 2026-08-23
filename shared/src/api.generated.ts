@@ -608,6 +608,12 @@ export interface components {
             entrance: string;
             /** @description Части URL публичной страницы дома; null — адрес не разобрался */
             slug: components["schemas"]["HouseSlugsDto"] | null;
+            /**
+             * @description Уровень доверия: high — предоставлена запись регистрации права из ЕГРН,
+             *     low — указан только кадастровый номер или ЕГРН не указан вовсе.
+             * @enum {string}
+             */
+            trustLevel: "high" | "low";
             /** @description Идентификатор отзыва */
             id: string;
             /** @description Текст отзыва */
@@ -639,10 +645,17 @@ export interface components {
             /**
              * @description Кадастровый номер из выписки ЕГРН: округ:район:квартал:объект.
              *     Квартал — шесть или семь цифр, номер объекта — от одной.
-             *     Тот же формат задаёт маска поля на фронте.
+             *     Опционален; если не передан ни он, ни `regRecord`, отзыв получает низкий уровень доверия.
              * @example 77:01:0001075:1234
              */
-            egrn: string;
+            egrn?: string;
+            /**
+             * @description Запись регистрации права из выписки ЕГРН.
+             *     Формат: {кадастровый_номер}-{регион}/{отдел}/{год}-{порядковый_номер}.
+             *     Опциональна; при наличии даёт отзыву высокий уровень доверия.
+             * @example 77:01:0003036:1308-77/011/2018-1
+             */
+            regRecord?: string;
             /**
              * @description Оценка квартиры от 1 до 5
              * @example 4
@@ -713,6 +726,12 @@ export interface components {
              * @example 2025-04
              */
             periodTo: string | null;
+            /**
+             * @description Уровень доверия: high — предоставлена запись регистрации права из ЕГРН,
+             *     low — указан только кадастровый номер или ЕГРН не указан вовсе.
+             * @enum {string}
+             */
+            trustLevel: "high" | "low";
             /** @description Идентификатор отзыва */
             id: string;
             /** @description Никнейм автора */
@@ -804,6 +823,12 @@ export interface components {
             periodFrom: string | null;
             /** @example 2025-04 */
             periodTo: string | null;
+            /**
+             * @description Уровень доверия: high — предоставлена запись регистрации права из ЕГРН,
+             *     low — указан только кадастровый номер или ЕГРН не указан вовсе.
+             * @enum {string}
+             */
+            trustLevel: "high" | "low";
             /** @example 120 */
             apartmentNumber: string;
             /** @example 7 */

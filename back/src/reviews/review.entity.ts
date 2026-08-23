@@ -39,9 +39,9 @@ export class Review {
   @JoinColumn({ name: 'authorId' })
   author!: User
 
-  /** Кадастровый номер из выписки ЕГРН; автоматически не проверяется */
-  @Column({ type: 'text' })
-  egrn!: string
+  /** Кадастровый номер или запись регистрации права; null — автор не указал */
+  @Column({ type: 'text', nullable: true })
+  egrn!: string | null
 
   @Column({ type: 'text' })
   text!: string

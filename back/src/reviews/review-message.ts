@@ -32,7 +32,7 @@ export function buildReviewCard(review: Review, isRepeat: boolean): string {
     '',
     `📍 ${escapeHtml(apartment.house.address)}`,
     `🚪 Кв. ${escapeHtml(apartment.number)}, подъезд ${escapeHtml(apartment.entrance)}`,
-    `📄 ЕГРН: ${escapeHtml(review.egrn)}`,
+    review.egrn ? `📄 ЕГРН: ${escapeHtml(review.egrn)}` : '📄 ЕГРН: не указан',
     `👤 ${escapeHtml(author.nickname)}`,
   ]
   // Оценки нет у отзывов, написанных до появления рейтинга

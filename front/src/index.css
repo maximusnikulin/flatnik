@@ -634,6 +634,17 @@ textarea {
   color: var(--color-pin);
 }
 
+/* Уровень доверия: плашка под статусом, нейтральный цвет чтобы не пугать */
+.review-card__trust {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.review-card__trust.-low {
+  color: var(--color-pending);
+}
+
 /* Причина отклонения от модератора; видит только автор отзыва */
 .review-card__reason {
   margin: 0;
