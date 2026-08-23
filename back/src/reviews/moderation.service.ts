@@ -77,26 +77,51 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Отправляет модератору карточку отзыва. Не бросает: отзыв уже сохранён, и
-   * недоступный телеграм не повод отвечать пользователю ошибкой — отзыв
-   * останется в очереди и найдётся командой /pending.
+   * Отправляет модератору карточку отзыва в Telegram и письмо на support@flatnik.ru.
+   * Не бросает: отзыв уже сохранён, и сбой любого канала не повод отвечать
+   * пользователю ошибкой — отзыв останется в очереди (/pending) и письмо независимо.
    */
   async notify(reviewId: string, isRepeat = false): Promise<void> {
-    if (!this.telegram.isEnabled) {
-      return
-    }
-
     const review = await this.loadWithContext(reviewId)
     if (!review) {
-      this.logger.error(`Отзыв ${reviewId} не найден — карточка модератору не отправлена`)
+      this.logger.error(`Отзыв ${reviewId} не найден — уведомления не отправлены`)
       return
     }
 
-    await this.telegram.sendMessage(
-      this.telegram.moderatorChatId,
-      buildReviewCard(review, isRepeat),
-      buildModerationKeyboard(review.id),
-    )
+    if (this.telegram.isEnabled) {
+      await this.telegram.sendMessage(
+        this.telegram.moderatorChatId,
+        buildReviewCard(review, isRepeat),
+        buildModerationKeyboard(review.id),
+      )
+    }
+
+    await this.notifyByEmail(review, isRepeat)
+  }
+
+  /**
+   * Письмо модератору о новом отзыве на support@flatnik.ru.
+   * Не бросает — по той же логике, что `notify` для Telegram.
+   */
+  private async notifyByEmail(review: Review, isRepeat: boolean): Promise<void> {
+    const label = isRepeat ? 'исправлен' : 'новый'
+    const subject = `Отзыв на модерацию (${label}): ${review.id}`
+    const body = [
+      isRepeat
+        ? 'Автор исправил отзыв и отправил его на проверку заново.'
+        : 'Новый отзыв ожидает модерации.',
+      '',
+      `ID: ${review.id}`,
+      `Адрес: ${review.apartment.house.address}`,
+      `Кв. ${review.apartment.number}, подъезд ${review.apartment.entrance}`,
+      `Автор: ${review.author.nickname}`,
+    ].join('\n')
+
+    try {
+      await this.mail.send('support@flatnik.ru', subject, body)
+    } catch (error) {
+      this.logger.error(`Отзыв ${review.id}: не удалось отправить email уведомление: ${String(error)}`)
+    }
   }
 
   /** Цикл long polling; ошибки внутри не выпускаем наружу, иначе цикл оборвётся */
