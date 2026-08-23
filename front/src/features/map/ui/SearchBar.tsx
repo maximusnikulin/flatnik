@@ -31,6 +31,8 @@ export function SearchBar({ hasMap }: SearchBarProps) {
   /** Ref на textarea (только на мобильном, hasMap=false) для авторесайза */
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
+  const isReady = ymaps.status === 'ready'
+
   // Выбор адреса извне (клик по пину) отражается в строке поиска
   useEffect(() => {
     const address = selectedAddress?.address ?? ''
@@ -68,12 +70,14 @@ export function SearchBar({ hasMap }: SearchBarProps) {
 
   // Авторесайз textarea (мобильный): пересчитываем высоту при каждом изменении
   // текста — в том числе при внешнем обновлении (выбор из саджеста, клик на пин)
+  // и при смене плейсхолдера, когда догрузились карты: короткий текст занимает
+  // одну строку вместо двух, а без isReady в зависимостях высота залипала
   useEffect(() => {
     if (hasMap || !textareaRef.current) return
     const el = textareaRef.current
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
-  }, [text, hasMap])
+  }, [text, hasMap, isReady])
 
   const applyFound = async (query: { text: string }) => {
     setSearching(true)
@@ -153,8 +157,6 @@ export function SearchBar({ hasMap }: SearchBarProps) {
     setNote(null)
     clearSelection()
   }
-
-  const isReady = ymaps.status === 'ready'
 
   return (
     <form className="search-bar" onSubmit={handleSubmit}>
