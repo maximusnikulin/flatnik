@@ -413,6 +413,22 @@ textarea {
   border-radius: 0;
 }
 
+/* Спиннер вместо лупы, пока грузятся карты или идёт запрос адреса */
+.search-bar__spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: search-bar-spin 0.7s linear infinite;
+}
+
+@keyframes search-bar-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 /* Сообщение поиска: адрес не найден или геокодер недоступен */
 .search-bar__note {
   position: absolute;

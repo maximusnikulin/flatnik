@@ -32,6 +32,9 @@ export function SearchBar({ hasMap }: SearchBarProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   const isReady = ymaps.status === 'ready'
+  /** Поле заблокировано и ждёт: карты ещё грузятся либо идёт запрос адреса.
+   *  Вместо лупы показываем спиннер, иначе поле выглядит просто нерабочим */
+  const isBusy = !isReady || isSearching
 
   // Выбор адреса извне (клик по пину) отражается в строке поиска
   useEffect(() => {
@@ -69,15 +72,14 @@ export function SearchBar({ hasMap }: SearchBarProps) {
   }, [text, ymaps.status])
 
   // Авторесайз textarea (мобильный): пересчитываем высоту при каждом изменении
-  // текста — в том числе при внешнем обновлении (выбор из саджеста, клик на пин)
-  // и при смене плейсхолдера, когда догрузились карты: короткий текст занимает
-  // одну строку вместо двух, а без isReady в зависимостях высота залипала
+  // текста — в том числе при внешнем обновлении (выбор из саджеста, клик на пин).
+  // Плейсхолдер статичный и в одну строку, поэтому на высоту он не влияет
   useEffect(() => {
     if (hasMap || !textareaRef.current) return
     const el = textareaRef.current
     el.style.height = 'auto'
     el.style.height = `${el.scrollHeight}px`
-  }, [text, hasMap, isReady])
+  }, [text, hasMap])
 
   const applyFound = async (query: { text: string }) => {
     setSearching(true)
@@ -173,7 +175,7 @@ export function SearchBar({ hasMap }: SearchBarProps) {
           value={text}
           onChange={(event) => setText(event.target.value)}
           onFocus={handleFocus}
-          placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
+          placeholder="Улица и дом"
           disabled={!isReady || isSearching}
           aria-label="Адрес дома"
         />
@@ -187,20 +189,30 @@ export function SearchBar({ hasMap }: SearchBarProps) {
           onChange={(event) => setText(event.target.value)}
           onFocus={handleFocus}
           onKeyDown={handleTextareaKeyDown}
-          placeholder={isReady ? 'Улица и дом' : 'Поиск адреса недоступен без карты'}
+          placeholder="Улица и дом"
           disabled={!isReady || isSearching}
           aria-label="Адрес дома"
         />
       )}
-      <button type="submit" className="search-bar__icon" disabled={!isReady} aria-label="Найти">
-        <svg viewBox="0 0 24 24" width="18" height="18">
-          <path
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            d="M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zm10 3.5-5-5"
-          />
-        </svg>
+      <button
+        type="submit"
+        className="search-bar__icon"
+        disabled={!isReady}
+        aria-label="Найти"
+        aria-busy={isBusy}
+      >
+        {isBusy ? (
+          <span className="search-bar__spinner" aria-hidden />
+        ) : (
+          <svg viewBox="0 0 24 24" width="18" height="18">
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              d="M10.5 17a6.5 6.5 0 1 1 0-13 6.5 6.5 0 0 1 0 13zm10 3.5-5-5"
+            />
+          </svg>
+        )}
       </button>
       <button type="button" className="search-bar__icon" onClick={handleClear} aria-label="Очистить">
         <svg viewBox="0 0 24 24" width="18" height="18">
