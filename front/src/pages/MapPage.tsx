@@ -16,6 +16,7 @@ import { useDocumentMeta } from "../shared/lib/use-document-meta";
 import { useIsMobile } from "../shared/lib/use-is-mobile";
 import { houseUrl } from "../shared/lib/house-url";
 import { Logo } from "../shared/ui/Logo";
+import { useMapUrlSync } from "../features/map/model/useMapUrlSync";
 
 /**
  * Карта: сверху шапка с логотипом, поиском и профилем. На десктопе под ней
@@ -23,10 +24,13 @@ import { Logo } from "../shared/ui/Logo";
  * мобильном карты нет вовсе — те же панели идут в потоке под шапкой. Фичи не
  * импортируют друг друга; их связывает эта страница.
  *
- * Состояние выбора живёт в map.store и в URL не отражается: карта — инструмент,
- * а не документ. Документы — страницы каталога, у них источник истины в адресе.
+ * Состояние выбора живёт в map.store и отражается в search-параметрах URL
+ * через useMapUrlSync: выбранный дом/квартира сериализуется в ?address=…&lat=…
+ * — это позволяет поделиться ссылкой и открыть карту с уже выбранным домом.
  */
 export function MapPage() {
+  useMapUrlSync();
+
   const navigate = useNavigate();
   const isMobile = useIsMobile();
 
