@@ -19,7 +19,7 @@ function formatPeriod(review: Review): string | null {
 /**
  * Карточка отзыва для модератора; отзыв нужен с relations `apartment.house` и
  * `author`. Текст обрезается: лимит сообщения Bot API — 4096 символов, а отзывы,
- * написанные до ограничения в 500 символов, бывают длиннее.
+ * написанные до ограничения в 3000 символов, бывают длиннее.
  */
 export function buildReviewCard(review: Review, isRepeat: boolean): string {
   const { apartment, author } = review

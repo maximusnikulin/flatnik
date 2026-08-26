@@ -1329,7 +1329,7 @@
             "type": "string",
             "description": "Текст отзыва",
             "minLength": 10,
-            "maxLength": 500
+            "maxLength": 3000
           },
           "captchaToken": {
             "type": "string",
@@ -1399,7 +1399,7 @@
             "type": "string",
             "description": "Текст отзыва",
             "minLength": 10,
-            "maxLength": 500
+            "maxLength": 3000
           },
           "captchaToken": {
             "type": "string",

@@ -16,7 +16,7 @@ import { HouseSlugsDto } from '../houses/houses.dto'
 import { ReviewStatus } from './review-status'
 
 /** Потолок длины отзыва: столько же стоит в textarea формы */
-const TEXT_MAX_LENGTH = 500
+const TEXT_MAX_LENGTH = 3000
 
 /**
  * Период съёма задаётся месяцем и годом — день жильцы всё равно не помнят.

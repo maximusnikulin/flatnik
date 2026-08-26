@@ -15,7 +15,7 @@ import { MIN_MONTH, currentMonth } from '../../../shared/lib/month'
 import { SUPPORT_EMAIL } from '../../../shared/lib/contacts'
 
 /** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
-const TEXT_MAX_LENGTH = 500
+const TEXT_MAX_LENGTH = 3000
 
 interface ReviewFormModalProps {
   /** Дом для нового отзыва; в режиме правки адрес берётся из самого отзыва */
