@@ -3,7 +3,7 @@ import { IMask, IMaskInput } from 'react-imask'
 import { MIN_MONTH, formatMonth, parseMonth } from '../lib/month'
 
 /**
- * Нативного выбора месяца нет в Firefox и Safari: там type="month" откатывается
+ * Нативного выбора месяца нет в Firefox: там type="month" откатывается
  * в обычное текстовое поле, куда можно набрать что угодно. Отличаем по
  * санитайзингу значения — браузер с поддержкой чистит то, что месяцем не является.
  */
@@ -13,6 +13,22 @@ const SUPPORTS_MONTH = (() => {
   probe.value = 'не месяц'
   return probe.type === 'month' && probe.value === ''
 })()
+
+/**
+ * WebKit умеет type="month" с Safari 14.1, но рисует контрол нативной темой: тот
+ * не сжимается ниже своего содержимого и вылезает за края модалки на мобильном.
+ * Ведём такие браузеры по той же ветке с маской, что и Firefox.
+ *
+ * Ловим не только Safari: под iOS любой браузер обязан работать на WebKit, и
+ * тамошние Chrome (CriOS) и Яндекс (YaBrowser) получают ровно тот же контрол.
+ * Их UA не содержит «Chrome», поэтому исключающий список их не задевает — а вот
+ * Android-Chrome и десктопные Chromium-браузеры отсекает, им нативный пикер ок.
+ */
+const IS_WEBKIT =
+  /safari/i.test(navigator.userAgent) && !/chrome|chromium|android/i.test(navigator.userAgent)
+
+/** Ветка ввода: нативный пикер или маска ММ.ГГГГ */
+const USE_NATIVE_MONTH = SUPPORTS_MONTH && !IS_WEBKIT
 
 const MONTH_HINT = 'Месяц и год в формате ММ.ГГГГ'
 
@@ -37,7 +53,7 @@ interface MonthInputProps {
   'aria-label': string
 }
 
-/** Поле месяца и года: нативный пикер там, где он есть, иначе маска ММ.ГГГГ */
+/** Поле месяца и года: нативный пикер в Chrome, маска ММ.ГГГГ в Safari и Firefox */
 export function MonthInput({ value, onChange, min, max, ...inputProps }: MonthInputProps) {
   const inputRef = useRef<HTMLInputElement>(null)
   // Формат маски не совпадает с форматом хранения, а недобранное «03.» в 'YYYY-MM'
@@ -56,7 +72,7 @@ export function MonthInput({ value, onChange, min, max, ...inputProps }: MonthIn
     let message = ''
     if (value === '') {
       // Начатый, но недобранный ввод виден только по маске
-      message = SUPPORTS_MONTH || display === '' ? '' : MONTH_HINT
+      message = USE_NATIVE_MONTH || display === '' ? '' : MONTH_HINT
     } else if (value < min) {
       message = `Не раньше ${formatMonth(min)}`
     } else if (value > max) {
@@ -65,7 +81,7 @@ export function MonthInput({ value, onChange, min, max, ...inputProps }: MonthIn
     inputRef.current?.setCustomValidity(message)
   }, [value, display, min, max])
 
-  if (SUPPORTS_MONTH) {
+  if (USE_NATIVE_MONTH) {
     return (
       <input
         ref={inputRef}
