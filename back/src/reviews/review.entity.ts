@@ -65,6 +65,10 @@ export class Review {
   @Column({ type: 'text', nullable: true })
   rejectionReason!: string | null
 
+  /** Модератор правил текст из Telegram; правка автором сбрасывает флаг */
+  @Column({ type: 'boolean', default: false })
+  editedByAdmin!: boolean
+
   @CreateDateColumn()
   createdAt!: Date
 

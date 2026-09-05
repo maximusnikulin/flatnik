@@ -20,19 +20,40 @@ const RETRY_DELAY_MS = 5000
 /** Сколько отзывов показывает /pending за раз */
 const PENDING_PAGE_SIZE = 10
 
-/** Отзыв, ждущий причины отклонения: ответ модератора прилетит отдельным сообщением */
-interface AwaitedRejection {
+/** Те же границы, что у CreateReviewDto / UpdateReviewDto и textarea формы */
+const TEXT_MIN_LENGTH = 10
+const TEXT_MAX_LENGTH = 3000
+
+/** Лимит Bot API на editMessageText; карточка + вердикт + новый текст могут не влезть */
+const CARD_LIMIT = 4096
+
+/** Отзыв, ждущий ответа модератора: причина отклонения или отредактированный текст */
+interface AwaitedReply {
   reviewId: string
-  /** Карточка отзыва — её перепишем, когда причина придёт */
+  /** Карточка отзыва — её перепишем, когда ответ придёт */
   cardMessageId: number
   cardText: string
+  kind: 'reject' | 'edit'
 }
 
 const delay = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
 
+/** Карточка + вердикт + новый текст; обрезаем, если не влезает в лимит Bot API */
+function closeCardWithEdit(cardText: string, editedText: string): string {
+  const verdict = '✏️ <b>Отредактирован и опубликован</b>'
+  const prefix = `${escapeHtml(cardText)}\n\n${verdict}\n\n`
+  const escaped = escapeHtml(editedText)
+  const room = CARD_LIMIT - prefix.length
+  if (room <= 1) {
+    return `${escapeHtml(cardText)}\n\n${verdict}`.slice(0, CARD_LIMIT)
+  }
+  const body = escaped.length > room ? `${escaped.slice(0, room - 1)}…` : escaped
+  return `${prefix}${body}`
+}
+
 /**
  * Модерация отзывов из телеграм-бота: карточка с кнопками «Одобрить» /
- * «Отклонить», причина отклонения ответным сообщением.
+ * «Отклонить» / «Редактировать». Отклонение и правка — ответным сообщением.
  *
  * Со статусами работает через репозиторий, а не через ReviewsService: так
  * зависимость односторонняя (ReviewsService → ModerationService) и цикла в DI нет.
@@ -42,11 +63,11 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ModerationService.name)
 
   /**
-   * message_id вопроса «причина?» → отзыв, который её ждёт. Живёт в памяти, как
-   * коды входа в AuthService: рестарт контейнера теряет ожидание, и модератор
-   * просто нажимает «Отклонить» ещё раз.
+   * message_id вопроса («причина?» / «новый текст?») → отзыв, который его ждёт.
+   * Живёт в памяти, как коды входа в AuthService: рестарт контейнера теряет
+   * ожидание, и модератор просто нажимает кнопку ещё раз.
    */
-  private readonly awaitedRejections = new Map<number, AwaitedRejection>()
+  private readonly awaitedReplies = new Map<number, AwaitedReply>()
 
   private offset = 0
   private isStopped = false
@@ -115,6 +136,8 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
       `Адрес: ${review.apartment.house.address}`,
       `Кв. ${review.apartment.number}, подъезд ${review.apartment.entrance}`,
       `Автор: ${review.author.nickname}`,
+      '',
+      review.text,
     ].join('\n')
 
     try {
@@ -182,26 +205,44 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     }
 
     if (action === 'reject') {
-      const questionId = await this.telegram.sendMessage(
-        this.telegram.moderatorChatId,
-        'Причина отклонения? Ответьте на это сообщение — текст увидит автор отзыва.',
-        { force_reply: true },
-      )
-      if (questionId !== null) {
-        this.awaitedRejections.set(questionId, {
-          reviewId,
-          cardMessageId: message.message_id,
-          cardText: message.text ?? '',
-        })
-      }
-      await this.telegram.answerCallbackQuery(query.id, 'Жду причину')
+      await this.askReply(query, message, reviewId, 'reject')
+      return
+    }
+
+    if (action === 'edit') {
+      await this.askReply(query, message, reviewId, 'edit')
       return
     }
 
     await this.telegram.answerCallbackQuery(query.id, 'Неизвестная кнопка')
   }
 
-  /** Ответ с причиной отклонения или команда */
+  /** Просит модератора ответить на сообщение: причина отклонения или новый текст */
+  private async askReply(
+    query: TelegramCallbackQuery,
+    message: TelegramMessage,
+    reviewId: string,
+    kind: AwaitedReply['kind'],
+  ): Promise<void> {
+    const prompt =
+      kind === 'reject'
+        ? 'Причина отклонения? Ответьте на это сообщение — текст увидит автор отзыва.'
+        : 'Отредактированный текст? Ответьте на это сообщение — он заменит отзыв и сразу опубликуется.'
+    const questionId = await this.telegram.sendMessage(this.telegram.moderatorChatId, prompt, {
+      force_reply: true,
+    })
+    if (questionId !== null) {
+      this.awaitedReplies.set(questionId, {
+        reviewId,
+        cardMessageId: message.message_id,
+        cardText: message.text ?? '',
+        kind,
+      })
+    }
+    await this.telegram.answerCallbackQuery(query.id, kind === 'reject' ? 'Жду причину' : 'Жду текст')
+  }
+
+  /** Ответ с причиной отклонения, отредактированным текстом или команда */
   private async handleMessage(message: TelegramMessage): Promise<void> {
     if (!this.isModerator(message)) {
       // Единственный способ узнать свой chat id при настройке бота
@@ -210,9 +251,13 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     }
 
     const replyTo = message.reply_to_message?.message_id
-    const awaited = replyTo === undefined ? undefined : this.awaitedRejections.get(replyTo)
+    const awaited = replyTo === undefined ? undefined : this.awaitedReplies.get(replyTo)
     if (replyTo !== undefined && awaited && message.text) {
-      this.awaitedRejections.delete(replyTo)
+      if (awaited.kind === 'edit') {
+        await this.handleEditReply(replyTo, awaited, message.text)
+        return
+      }
+      this.awaitedReplies.delete(replyTo)
       const review = await this.setStatus(awaited.reviewId, ReviewStatus.Rejected, message.text)
       if (!review) {
         await this.telegram.sendMessage(this.telegram.moderatorChatId, 'Отзыв не найден')
@@ -237,6 +282,37 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
         'Бот модерации Квартирника. Новые отзывы приходят сюда сами, /pending — те, что ждут решения.',
       )
     }
+  }
+
+  /**
+   * Новый текст вместо авторского: те же границы, что у формы. Невалидный
+   * ответ не снимает ожидание — модератор отвечает на тот же вопрос ещё раз.
+   */
+  private async handleEditReply(
+    questionId: number,
+    awaited: AwaitedReply,
+    rawText: string,
+  ): Promise<void> {
+    const text = rawText.trim()
+    if (text.length < TEXT_MIN_LENGTH || text.length > TEXT_MAX_LENGTH) {
+      await this.telegram.sendMessage(
+        this.telegram.moderatorChatId,
+        `Текст должен быть от ${TEXT_MIN_LENGTH} до ${TEXT_MAX_LENGTH} символов. Ответьте на тот же вопрос ещё раз.`,
+      )
+      return
+    }
+
+    this.awaitedReplies.delete(questionId)
+    const review = await this.applyAdminEdit(awaited.reviewId, text)
+    if (!review) {
+      await this.telegram.sendMessage(this.telegram.moderatorChatId, 'Отзыв не найден')
+      return
+    }
+    await this.telegram.editMessageText(
+      this.telegram.moderatorChatId,
+      awaited.cardMessageId,
+      closeCardWithEdit(awaited.cardText, text),
+    )
   }
 
   /**
@@ -297,6 +373,23 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     return review
   }
 
+  /** Заменяет текст, помечает правку модератора и сразу публикует */
+  private async applyAdminEdit(reviewId: string, text: string): Promise<Review | null> {
+    const review = await this.reviews.findOneBy({ id: reviewId })
+    if (!review) {
+      return null
+    }
+
+    review.text = text
+    review.editedByAdmin = true
+    review.status = ReviewStatus.Confirmed
+    review.rejectionReason = null
+    await this.reviews.save(review)
+    this.logger.log(`Отзыв ${reviewId}: отредактирован модератором и опубликован`)
+    await this.mailVerdict(review)
+    return review
+  }
+
   /**
    * Сообщает автору решение письмом. Не бросает: решение модератора уже
    * сохранено, и недоступный SMTP не повод отвечать боту ошибкой — тот же
@@ -313,7 +406,9 @@ export class ModerationService implements OnModuleInit, OnModuleDestroy {
     const approved = review.status === ReviewStatus.Confirmed
     const subject = approved ? 'Ваш отзыв опубликован' : 'Ваш отзыв отклонён'
     const body = approved
-      ? 'Модератор одобрил ваш отзыв — он опубликован на Квартирнике.'
+      ? review.editedByAdmin
+        ? 'Модератор опубликовал ваш отзыв с редакторскими правками — он доступен на Квартирнике.'
+        : 'Модератор одобрил ваш отзыв — он опубликован на Квартирнике.'
       : `Модератор отклонил ваш отзыв.\n\nПричина: ${review.rejectionReason ?? 'не указана'}\n\nОтзыв можно поправить и отправить на проверку заново.`
 
     try {

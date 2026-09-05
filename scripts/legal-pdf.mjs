@@ -23,6 +23,7 @@ const DOCS = [
   { md: 'user-agreement.md', pdf: 'user-agreement.pdf' },
   { md: 'consent-cookies.md', pdf: 'consent-cookies.pdf' },
   { md: 'consent-user-data.md', pdf: 'consent-user-data.pdf' },
+  { md: 'review-guidelines.md', pdf: 'review-guidelines.pdf' },
 ]
 
 /** A4 в пунктах; поля — 25 мм ≈ 71 pt */

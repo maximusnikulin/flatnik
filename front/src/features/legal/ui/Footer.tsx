@@ -1,5 +1,6 @@
 import {
   PRIVACY_POLICY_URL,
+  REVIEW_GUIDELINES_URL,
   SUPPORT_EMAIL,
   USER_AGREEMENT_URL,
   mailtoUrl,
@@ -31,6 +32,9 @@ export function Footer() {
           </a>
           <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
             Политика обработки персональных данных
+          </a>
+          <a href={REVIEW_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">
+            Правила написания отзывов
           </a>
           <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться с нами: {SUPPORT_EMAIL}</a>
           {isCookieSettingsShown && (

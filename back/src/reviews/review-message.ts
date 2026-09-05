@@ -54,6 +54,7 @@ export function buildModerationKeyboard(reviewId: string): TelegramReplyMarkup {
       [
         { text: '✅ Одобрить', callback_data: `approve:${reviewId}` },
         { text: '❌ Отклонить', callback_data: `reject:${reviewId}` },
+        { text: '✏️ Редактировать', callback_data: `edit:${reviewId}` },
       ],
     ],
   }

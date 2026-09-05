@@ -14,6 +14,7 @@ export const USER_AGREEMENT_URL = '/legal/user-agreement.pdf'
 export const PRIVACY_POLICY_URL = '/legal/privacy-policy.pdf'
 /** Разъяснение про cookie: на него ведёт «Подробнее» в баннере */
 export const COOKIE_CONSENT_URL = '/legal/consent-cookies.pdf'
+export const REVIEW_GUIDELINES_URL = '/legal/review-guidelines.pdf'
 
 /**
  * Ссылка `mailto:` с заполненными темой и телом письма.

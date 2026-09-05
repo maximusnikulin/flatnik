@@ -12,7 +12,7 @@ import { InfoTooltip } from '../../../shared/ui/InfoTooltip'
 import { MonthInput } from '../../../shared/ui/MonthInput'
 import { RatingInput } from '../../../shared/ui/RatingInput'
 import { MIN_MONTH, currentMonth } from '../../../shared/lib/month'
-import { SUPPORT_EMAIL } from '../../../shared/lib/contacts'
+import { REVIEW_GUIDELINES_URL, SUPPORT_EMAIL } from '../../../shared/lib/contacts'
 
 /** Столько же стоит в CreateReviewDto и UpdateReviewDto на бэкенде */
 const TEXT_MAX_LENGTH = 3000
@@ -267,6 +267,17 @@ export function ReviewFormModal({ house, onCreated, onUnauthorized }: ReviewForm
           <p className="panel-note">
             Если что-то не работает или есть замечания —{' '}
             <a href={`mailto:${SUPPORT_EMAIL}`} className="panel-note__link">пишите нам: {SUPPORT_EMAIL}</a>.
+          </p>
+
+          {/* Согласие даётся самим действием, как в AuthModal: текст вплотную
+              к кнопке и называет её словами. Документ открывается в новой
+              вкладке, чтобы не потерять заполненную форму */}
+          <p className="panel-note">
+            Нажимая «Отправить на проверку», вы соглашаетесь с{' '}
+            <a href={REVIEW_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">
+              правилами написания отзывов
+            </a>
+            .
           </p>
 
           <button type="submit" className="btn-primary" disabled={isBusy}>

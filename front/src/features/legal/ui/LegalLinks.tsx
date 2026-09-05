@@ -1,5 +1,6 @@
 import {
   PRIVACY_POLICY_URL,
+  REVIEW_GUIDELINES_URL,
   SUPPORT_EMAIL,
   USER_AGREEMENT_URL,
   mailtoUrl,
@@ -23,6 +24,9 @@ export function LegalLinks() {
       </a>
       <a href={PRIVACY_POLICY_URL} target="_blank" rel="noopener noreferrer">
         Персональные данные
+      </a>
+      <a href={REVIEW_GUIDELINES_URL} target="_blank" rel="noopener noreferrer">
+        Правила отзывов
       </a>
       <a href={mailtoUrl('Обращение через сайт Квартирник')}>Связаться: {SUPPORT_EMAIL}</a>
       {isCookieSettingsShown && (

@@ -191,6 +191,7 @@ export class ReviewsService {
     review.periodTo = toStoredDate(dto.periodTo)
     review.status = ReviewStatus.Pending
     review.rejectionReason = null
+    review.editedByAdmin = false
     await this.reviews.save(review)
 
     await this.moderationService.notify(review.id, true)
